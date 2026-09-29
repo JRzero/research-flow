@@ -22,6 +22,8 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     @Autowired private ResearchFlowMapper mapper;
     private final ObjectMapper json = new ObjectMapper();
 
+    @Override public List<Map<String,Object>> listAssignableUsers(String keyword){return mapper.selectAssignableUsers(keyword);}
+
     @Override
     public Map<String,Object> dashboard(Long userId, boolean viewAll) {
         List<Map<String,Object>> projects = listProjects(userId, viewAll, null, null);
