@@ -14,7 +14,7 @@ ResearchFlow V2 是面向科研院所的科研项目全过程治理平台。系�
 - 文件采用 Document 元数据模型；Demo 使用本地 Volume，不依赖 MinIO。
 
 ## 3. 用户角色
-- 科研用户：创建 Proposal，维护项目计划与执行数据，提交变更和验收。
+- 科研用户：创建 Proposal；成为项目成员后参与执行。PI / PROJECT_MANAGER 维护正式计划、变更和验收，普通成员贡献进展、风险、问题、成果与资料。
 - 科研管理员：评审、立项、变更审批、验收与结项。
 - 管理者：查看全局项目组合、风险、预算和成果，不直接修改核心业务。
 - 项目级角色：PI、PROJECT_MANAGER、RESEARCHER、FINANCE_CONTACT、SPONSOR、MEMBER。
@@ -26,7 +26,7 @@ Project: PLANNING -> ACTIVE -> CLOSING -> CLOSED
 Risk: OPEN -> MONITORING -> CLOSED / OCCURRED
 Issue: OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED
 Change: DRAFT -> SUBMITTED -> APPROVED -> APPLIED
-Acceptance: DRAFT -> SUBMITTED -> APPROVED / RETURNED
+Acceptance: DRAFT -> SUBMITTED -> APPROVED / RETURNED -> SUBMITTED
 Closeout: PENDING -> COMPLETED
 
 ## 5. 产品导航
@@ -56,9 +56,10 @@ Proposal -> Review -> Award -> Project -> Baseline -> WorkItem/Progress -> Risk/
 
 ## 7. 前端密度
 桌面端以高信息密度工作台为主：
-- 页面间距 12-16px。
-- 卡片内边距 12-16px。
-- Header 64px 左右。
-- 列表优先于大面积装饰卡片。
-- 关键点击区域仍保持 >= 40px。
+- 页面常用间距 7-10px，主内容 padding 约 12px 16px。
+- 卡片内边距约 8-12px。
+- Header / Brand 高度 56px，Workspace Tab 40px。
+- 列表、表格、树形 WBS 优先于大面积装饰卡片。
+- 申请审批使用 Award 批复面板，直接展示申请值与批准值差异。
+- 关键点击区域不通过过度压缩牺牲可用性。
 - 移动端只保留 5 个底部主导航入口。
