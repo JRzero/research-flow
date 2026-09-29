@@ -212,12 +212,22 @@ public class ResearchProjectServiceImpl implements IResearchProjectService {
         ResearchProject project = required(projectId);
         checkOwner(project, userId, canManageAll);
         if (!ResearchProjectStatus.IN_PROGRESS.equals(project.getStatus())) throw new ServiceException("仅执行中的项目可以提交验收");
-        if (acceptanceMapper.selectByProjectId(projectId) != null) throw new ServiceException("该项目已存在验收申请");
         if (acceptance == null || StringUtils.isEmpty(acceptance.getProjectSummary())) throw new ServiceException("项目总结不能为空");
+
+        ResearchAcceptance existing = acceptanceMapper.selectByProjectId(projectId);
+        if (existing != null && !"REJECTED".equals(existing.getStatus())) {
+            throw new ServiceException("该项目已存在待处理或已完成的验收申请");
+        }
+
         acceptance.setProjectId(projectId);
         acceptance.setStatus("PENDING");
-        acceptance.setCreateBy(username);
-        acceptanceMapper.insertAcceptance(acceptance);
+        if (existing == null) {
+            acceptance.setCreateBy(username);
+            acceptanceMapper.insertAcceptance(acceptance);
+        } else {
+            acceptance.setUpdateBy(username);
+            acceptanceMapper.resubmitAcceptance(acceptance);
+        }
         workflowService.submitAcceptance(projectId, userId, username);
     }
 
