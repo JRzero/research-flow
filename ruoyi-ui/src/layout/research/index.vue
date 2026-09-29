@@ -78,10 +78,10 @@ const userStore = useUserStore()
 
 const navItems = [
   { path: '/research/dashboard', label: '工作台', icon: 'HomeFilled' },
+  { path: '/research/proposals', label: '申请', icon: 'DocumentAdd' },
   { path: '/research/projects', label: '项目', icon: 'FolderOpened' },
   { path: '/research/approvals', label: '审批', icon: 'Finished' },
-  { path: '/research/risks', label: '风险', icon: 'Warning' },
-  { path: '/research/analytics', label: '数据', icon: 'DataAnalysis' }
+  { path: '/research/risks', label: '治理', icon: 'Warning' }
 ]
 
 const isAdmin = computed(() => userStore.roles.includes('admin'))
@@ -91,11 +91,12 @@ const roleText = computed(() => isResearchAdmin.value ? '科研管理员' : isMa
 const roleClass = computed(() => isResearchAdmin.value ? 'admin' : isManager.value ? 'manager' : 'owner')
 
 const titleMap = {
-  '/research/dashboard': ['科研项目工作台', '优先处理待办，持续关注进展与风险'],
-  '/research/projects': ['科研项目', '从申报到结项的统一项目空间'],
-  '/research/approvals': ['审批中心', '集中处理项目申报、启动与成果验收'],
-  '/research/risks': ['风险项目', '用可解释规则识别需要优先关注的项目'],
-  '/research/analytics': ['数据概览', '掌握项目结构、进度与预算执行情况']
+  '/research/dashboard': ['科研项目工作台', '申报、项目、风险和待办集中掌握'],
+  '/research/proposals': ['项目申请', 'Proposal 与正式 Project 分离管理'],
+  '/research/projects': ['科研项目', '立项后的计划、执行、治理与结项'],
+  '/research/approvals': ['审批中心', '统一处理申报、变更与验收'],
+  '/research/risks': ['风险与治理', '风险登记册及项目治理入口'],
+  '/research/analytics': ['数据概览', '科研项目组合与经费执行']
 }
 const currentTitle = computed(() => route.path.startsWith('/research/projects/') ? '项目工作空间' : (titleMap[route.path]?.[0] || 'ResearchFlow'))
 const currentSubtitle = computed(() => route.path.startsWith('/research/projects/') ? '在一个空间内推进项目全生命周期工作' : (titleMap[route.path]?.[1] || ''))
@@ -135,7 +136,7 @@ function handleCommand(command) {
 .research-sidebar {
   position: fixed;
   inset: 0 auto 0 0;
-  width: 248px;
+  width: 220px;
   background: var(--rf-sidebar);
   color: #fff;
   display: flex;
@@ -145,23 +146,23 @@ function handleCommand(command) {
 }
 .brand {
   width: 100%;
-  height: 88px;
+  height: 64px;
   border: 0;
   background: transparent;
   color: inherit;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 22px;
+  padding: 0 16px;
   text-align: left;
   cursor: pointer;
   border-bottom: 1px solid rgba(148, 163, 184, .12);
 }
 .brand:hover { background: rgba(255, 255, 255, .035); }
 .brand-mark {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
   display: block;
   filter: drop-shadow(0 8px 18px rgba(37, 99, 235, .22));
 }
@@ -169,22 +170,22 @@ function handleCommand(command) {
 .brand-sub { margin-top: 3px; color: var(--rf-sidebar-muted); font-size: 12px; }
 
 .product-nav {
-  padding: 18px 12px;
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 .nav-item {
   position: relative;
-  min-height: 48px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 12px;
   border-radius: 11px;
   display: flex;
   align-items: center;
   gap: 12px;
   color: #a8b5c7;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 520;
   text-decoration: none;
   transition: background var(--rf-motion-fast) ease, color var(--rf-motion-fast) ease, transform var(--rf-motion-fast) ease;
@@ -227,10 +228,10 @@ function handleCommand(command) {
 .user-meta span { margin-top: 4px; color: var(--rf-sidebar-muted); font-size: 12px; }
 .sidebar-footer :deep(.el-button) { width: 44px; height: 44px; color: #a8b5c7; }
 
-.research-main { min-height: 100dvh; margin-left: 248px; }
+.research-main { min-height: 100dvh; margin-left: 220px; }
 .research-header {
-  height: 88px;
-  padding: 0 32px;
+  height: 64px;
+  padding: 0 20px;
   position: sticky;
   top: 0;
   z-index: 30;
@@ -242,8 +243,8 @@ function handleCommand(command) {
   border-bottom: 1px solid var(--rf-border);
   backdrop-filter: blur(12px);
 }
-.page-title { color: var(--rf-text); font-size: 20px; font-weight: 720; letter-spacing: -.2px; }
-.page-subtitle { margin-top: 5px; color: var(--rf-text-muted); font-size: 13px; line-height: 1.4; }
+.page-title { color: var(--rf-text); font-size: 17px; font-weight: 720; letter-spacing: -.2px; }
+.page-subtitle { margin-top: 2px; color: var(--rf-text-muted); font-size: 13px; line-height: 1.4; }
 .header-actions { display: flex; align-items: center; gap: 10px; }
 .role-chip {
   min-height: 34px;

@@ -1,28 +1,101 @@
-# ResearchFlow MVP 设计决策说明
+# ResearchFlow V2 设计决策说明
 
 ## 背景
-初始需求只给出了“申报、立项审批、进度跟踪、经费管理、成果验收”的方向，没有具体组织、审批、经费和验收规则。因此 MVP 不假设完整制度，而是先建立最小业务闭环，并作为后续需求澄清载体。
 
-## 1. 以 Project 为核心业务对象
-审批、里程碑、进展、经费、成果和验收均围绕 Project 聚合。用户进入 Project Workspace 就能理解项目当前状态、发生过什么、花了多少钱、有什么风险，而不是在多个 CRUD 菜单之间切换。
+V1 用 `research_project` 同时承载申报、立项、执行和验收，适合快速验证，但会混淆“申请事实、批准事实、计划事实和实际执行事实”。V2 允许重建 Demo Schema，因此选择重新建立领域边界，而不是继续兼容错误抽象。
 
-## 2. 优先跑通完整生命周期
-MVP 聚焦“创建 -> 申报 -> 审批 -> 执行 -> 验收 -> 结项”。功能数量不是目标，完整、可演示、可追踪的闭环优先。
+## 1. ResearchRecord 只是统一身份，不是巨型 Aggregate
 
-## 3. MVP 同时用于需求澄清
-当前角色、审批层级和状态机是可运行的业务假设。真实用户体验后，可以针对具体流程指出还需要部门审批、专家评审、中期检查等规则，从而产生更高质量的下一轮需求。
+ResearchRecord 让一个科研事项从申请到结项保持统一追踪 ID，但 Proposal、Award、Project、ChangeRequest、Budget、Acceptance 均有独立事务边界。
 
-## 4. 复用 RuoYi 企业基础设施，但不沿用 CRUD 产品形态
-技术基座采用 Vue 3 + Spring Boot + RuoYi + MyBatis + MySQL。RuoYi 提供用户、角色、部门、认证、数据权限、日志和系统配置；科研业务放在独立 `ruoyi-research` 模块。科研用户使用独立产品化界面，原 RuoYi 后台仅作为 Admin Console。
+## 2. Proposal 与 Project 分离
 
-## 5. 采用模块化单体
-MVP 不引入微服务、网关、注册中心和消息队列。当前规模下模块化单体复杂度最低，也更利于快速调整仍在变化的业务边界。
+Proposal 表达“申请做什么”；Project 表达“正式获批并正在治理什么”。
 
-## 6. 审批先用简单状态机，预留 WorkflowService
-当前审批规则尚未验证，因此不提前引入 Flowable。通过 `WorkflowService` 隔离流程能力，MVP 使用 `SimpleWorkflowService`；当真实需求出现多级审批、会签、条件分支时，可替换为 BPM 引擎实现。
+批准 Proposal 不直接修改 Proposal 的申请预算或周期，而是产生 Award 保存批准事实。
 
-## 7. 规则负责业务判断，AI 负责辅助
-审批、权限、金额、项目状态和基础风险判断必须确定、可测试、可追踪。AI 只用于申报整理、总结和风险解释，不能直接改变核心业务状态。
+## 3. Award 保存正式批准事实
 
-## 8. 用最低必要复杂度交付可靠系统
-成熟能力复用，业务价值重点设计；需求不明确的地方少做假设。最终目标是交付一个完整可运行的科研项目管理 MVP，并用它继续发现真实需求。
+申请预算、批准预算、当前预算和实际支出必须分开。
+
+同样，申请周期、批准周期、Baseline 周期和实际完成日期不能共用一个字段反复覆盖。
+
+## 4. Baseline 不可变
+
+项目启动时生成 Baseline V1。
+
+正式项目执行后，计划变化必须进入 ChangeRequest。批准变更被实际应用后生成 Baseline V2/V3，旧 Baseline 永不修改。
+
+## 5. WorkItem 统一 WBS
+
+PHASE、WORK_PACKAGE、TASK、MILESTONE 使用统一树形 WorkItem 模型，避免维护三套重复 CRUD，同时保留未来树形 WBS、看板和甘特视图扩展空间。
+
+## 6. Risk 与 Issue 分离
+
+Risk 是未来不确定事件，Issue 是已经发生的问题。
+
+正式风险等级由 probability × impact 的确定性规则计算。AI 可以解释和建议，但不能直接确定正式等级或状态。
+
+## 7. Change Approval 与 Apply 分离
+
+“同意变更”与“真正修改项目计划”是两个动作。
+
+这样可以审计谁批准、何时应用、产生哪个 Baseline，并避免审批动作直接覆盖计划数据。
+
+## 8. Acceptance 与 Closeout 分离
+
+验收通过只说明科研成果通过评价；项目还要完成最终报告、经费、成果、问题和档案检查，才可进入 CLOSED。
+
+## 9. Document 元数据与存储解耦
+
+ResearchFlow 保存正式的 research_document 元数据。
+
+文件存储通过 storage_provider / storage_key 抽象。Demo 使用 LOCAL + Docker Volume，不启动 MinIO；未来可以切换 MinIO、S3、OSS 等对象存储而不改变领域模型。
+
+## 10. Workflow 是通用业务审计
+
+Workflow 不再强绑定 Project，可关联 Proposal、ChangeRequest、Acceptance 等业务对象。
+
+当前保持轻量 WorkflowInstance / WorkflowAction；未来出现多级审批、会签和条件分支时再替换为 Flowable。
+
+## 11. 模块化单体优先
+
+继续采用 Spring Boot + RuoYi + MyBatis + MySQL 的模块化单体。
+
+当前不引入微服务、服务注册、MQ 和分布式事务，因为这些不会增加 Demo 的业务判断质量。
+
+## 12. Application Service 管用例，Mapper 只负责持久化
+
+Controller 保持薄层；领域动作使用明确 API，例如 submit、activate、occur、apply、closeout，而不是通用 status 更新接口。
+
+V2 采用 CQRS Lite 思路，但不引入 CQRS/Event Sourcing 框架。
+
+## 13. AI 只消费结构化业务上下文
+
+AI 不直接访问 Mapper，也不承担 Workflow Engine、Permission System 或 Accounting System 的职责。
+
+未来通过 ProjectContextAssembler 将 Award、Baseline、WorkItem、Progress、Budget、Risk、Issue、Change、Outcome 等结构化信息提供给 Copilot。
+
+## 14. Demo 数据直接重建，不做 V1 兼容迁移
+
+目前没有生产数据负担，因此 V2 选择重建科研业务 Schema 和 Demo Seed，而不是维护大量 ALTER/兼容代码。
+
+升级本地 Demo 时应执行：
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+## 15. 前端信息密度提高
+
+科研管理是桌面生产力场景。V2 将大面积卡片式布局调整为：
+
+- 220px 紧凑侧栏。
+- 64px Header。
+- 紧凑 Toolbar。
+- 表格优先。
+- 单行 Project Header + KPI Strip。
+- 7 个 Project Workspace Tab。
+
+移动端继续保留最大 5 项底部导航。
