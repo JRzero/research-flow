@@ -130,10 +130,14 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         BigDecimal requestedBudget=money(p.get("requestedBudget"));
         BigDecimal budgetLines=money(mapper.sumProposalBudget(proposalId));
         miss(missing,requestedBudget.compareTo(BigDecimal.ZERO)<=0,"BUDGET_REQUIRED","申请预算必须大于0");
-        miss(missing,mapper.selectProposalBudget(proposalId).isEmpty(),"BUDGET_LINES_REQUIRED","至少需要一个预算科目");
+        List<Map<String,Object>> proposalBudget=mapper.selectProposalBudget(proposalId);
+        miss(missing,proposalBudget.isEmpty(),"BUDGET_LINES_REQUIRED","至少需要一个预算科目");
+        miss(missing,proposalBudget.stream().anyMatch(line->money(line.get("amount")).compareTo(BigDecimal.ZERO)<0),"BUDGET_LINE_INVALID","预算科目金额不能为负数");
         miss(missing,requestedBudget.compareTo(budgetLines)!=0,"BUDGET_TOTAL_MISMATCH","预算明细合计必须等于申请预算");
         miss(missing,mapper.countProposalMembers(proposalId)==0,"MEMBER_REQUIRED","至少需要一名项目成员");
-        miss(missing,mapper.selectExpectedOutputs(proposalId).isEmpty(),"OUTPUT_REQUIRED","至少需要一项预期成果");
+        List<Map<String,Object>> expectedOutputs=mapper.selectExpectedOutputs(proposalId);
+        miss(missing,expectedOutputs.isEmpty(),"OUTPUT_REQUIRED","至少需要一项预期成果");
+        miss(missing,expectedOutputs.stream().anyMatch(o->integer(o.get("targetQuantity"),0)<1),"OUTPUT_QUANTITY_INVALID","预期成果数量必须至少为1");
         if(mapper.selectDocuments("PROPOSAL",proposalId).isEmpty()) warnings.add(msg("NO_DOCUMENT","尚未上传申报附件"));
         Map<String,Object> out=new LinkedHashMap<>();out.put("valid",missing.isEmpty());out.put("missing",missing);out.put("warnings",warnings);return out;
     }
@@ -395,10 +399,10 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     private void checkProposalAccess(Map<String,Object>p,Long userId,boolean viewAll){ResearchFlowRules.require(viewAll||userId.equals(longValue(p.get("applicantUserId"))),"无权查看该申请");}
     private void checkProposalOwner(Map<String,Object>p,Long userId,boolean manageAll){ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("applicantUserId"))),"无权修改该申请");}
     private void checkProjectAccess(Long projectId,Map<String,Object>p,Long userId,boolean viewAll){ResearchFlowRules.require(viewAll||userId.equals(longValue(p.get("piUserId")))||mapper.isProjectMember(projectId,userId)>0,"无权查看该项目");}
-    private void checkProjectManage(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||List.of("PI","PROJECT_MANAGER").contains(role),"仅PI或项目经理可以执行该操作");}
+    private void checkProjectManage(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||"PI".equals(role)||"PROJECT_MANAGER".equals(role),"仅PI或项目经理可以执行该操作");}
     private void checkProjectContributor(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||mapper.isProjectMember(projectId,userId)>0,"仅项目成员可以执行该操作");}
-    private void checkProjectFinance(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||List.of("PI","PROJECT_MANAGER","FINANCE_CONTACT").contains(role),"无权维护项目经费");}
-    private void checkWorkItemManage(Long projectId,Map<String,Object>p,Map<String,Object>w,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||List.of("PI","PROJECT_MANAGER").contains(role)||userId.equals(longValue(w.get("ownerUserId"))),"仅项目经理或任务负责人可以更新工作项");}
+    private void checkProjectFinance(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||"PI".equals(role)||"PROJECT_MANAGER".equals(role)||"FINANCE_CONTACT".equals(role),"无权维护项目经费");}
+    private void checkWorkItemManage(Long projectId,Map<String,Object>p,Map<String,Object>w,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||"PI".equals(role)||"PROJECT_MANAGER".equals(role)||userId.equals(longValue(w.get("ownerUserId"))),"仅项目经理或任务负责人可以更新工作项");}
     private long countStatus(List<Map<String,Object>> rows,String status){return rows.stream().filter(x->status.equals(s(x,"status"))).count();}
     private int percent(BigDecimal a,BigDecimal b){return b==null||b.compareTo(BigDecimal.ZERO)==0?0:a.multiply(BigDecimal.valueOf(100)).divide(b,0,java.math.RoundingMode.HALF_UP).intValue();}
     private static String no(String prefix){String time=LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));return prefix+"-"+time+"-"+ThreadLocalRandom.current().nextInt(100,1000);}
