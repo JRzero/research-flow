@@ -1,28 +1,37 @@
-# ResearchFlow MVP 设计决策说明
+# ResearchFlow V2 设计决策
 
-## 背景
-初始需求只给出了“申报、立项审批、进度跟踪、经费管理、成果验收”的方向，没有具体组织、审批、经费和验收规则。因此 MVP 不假设完整制度，而是先建立最小业务闭环，并作为后续需求澄清载体。
+## 1. 重新建模，不兼容 V1 Schema
+当前仍是 Demo，无生产数据迁移负担。V2 直接建立新 Schema 和 Seed，V1 表结构不再作为约束。
 
-## 1. 以 Project 为核心业务对象
-审批、里程碑、进展、经费、成果和验收均围绕 Project 聚合。用户进入 Project Workspace 就能理解项目当前状态、发生过什么、花了多少钱、有什么风险，而不是在多个 CRUD 菜单之间切换。
+## 2. ResearchRecord 是统一身份，不是超级聚合
+ResearchRecord 负责跨生命周期关联和导航；Proposal、Project、ChangeRequest、Budget 等保持独立事务边界。
 
-## 2. 优先跑通完整生命周期
-MVP 聚焦“创建 -> 申报 -> 审批 -> 执行 -> 验收 -> 结项”。功能数量不是目标，完整、可演示、可追踪的闭环优先。
+## 3. Proposal / Award / Project 分离
+Proposal 保存申请值；Award 保存批准值；Project 保存正式项目当前运行状态。避免一列数据在生命周期中被持续覆盖。
 
-## 3. MVP 同时用于需求澄清
-当前角色、审批层级和状态机是可运行的业务假设。真实用户体验后，可以针对具体流程指出还需要部门审批、专家评审、中期检查等规则，从而产生更高质量的下一轮需求。
+## 4. Immutable Baseline
+项目激活生成 Baseline V1；批准变更应用后生成 V2/V3。Baseline 只读，计划偏差通过当前执行事实与基线快照比较。
 
-## 4. 复用 RuoYi 企业基础设施，但不沿用 CRUD 产品形态
-技术基座采用 Vue 3 + Spring Boot + RuoYi + MyBatis + MySQL。RuoYi 提供用户、角色、部门、认证、数据权限、日志和系统配置；科研业务放在独立 `ruoyi-research` 模块。科研用户使用独立产品化界面，原 RuoYi 后台仅作为 Admin Console。
+## 5. WorkItem 统一 WBS
+PHASE / WORK_PACKAGE / TASK / MILESTONE 使用一张 research_work_item 表，通过 parent_id 构造树，避免三套 CRUD 模型。
 
-## 5. 采用模块化单体
-MVP 不引入微服务、网关、注册中心和消息队列。当前规模下模块化单体复杂度最低，也更利于快速调整仍在变化的业务边界。
+## 6. Governance 独立
+Risk、Issue、Decision、ChangeRequest 都是一等业务对象。Risk 发生后可转换为 Issue；Change APPROVED 与 APPLIED 分离。
 
-## 6. 审批先用简单状态机，预留 WorkflowService
-当前审批规则尚未验证，因此不提前引入 Flowable。通过 `WorkflowService` 隔离流程能力，MVP 使用 `SimpleWorkflowService`；当真实需求出现多级审批、会签、条件分支时，可替换为 BPM 引擎实现。
+## 7. Finance 是项目预算执行，不是财务系统
+保留 Budget Version、BudgetLine、Expense，不承担会计凭证、付款、发票和报销。
 
-## 7. 规则负责业务判断，AI 负责辅助
-审批、权限、金额、项目状态和基础风险判断必须确定、可测试、可追踪。AI 只用于申报整理、总结和风险解释，不能直接改变核心业务状态。
+## 8. Document 元数据与存储解耦
+research_document 保存业务归属与文件元数据，storage_provider 当前为 LOCAL。文件本体继续使用 RuoYi uploadPath + Docker Volume；未来可替换 MinIO/S3。
 
-## 8. 用最低必要复杂度交付可靠系统
-成熟能力复用，业务价值重点设计；需求不明确的地方少做假设。最终目标是交付一个完整可运行的科研项目管理 MVP，并用它继续发现真实需求。
+## 9. Workflow 与业务实体解耦
+WorkflowInstance 使用 business_type + business_id 指向 Proposal、ChangeRequest、Acceptance 等对象。业务结果与流程动作审计分开。
+
+## 10. Modular Monolith
+继续 Spring Boot + RuoYi + MyBatis + MySQL。科研模块保持单体部署，但按领域组织服务和 API。
+
+## 11. AI 使用结构化上下文
+AI 从 ProjectContext 获取 Award、Baseline、WorkItem、Budget、Risk、Issue、Change、Outcome 等结构化信息，不以 RAG 作为默认前提。
+
+## 12. UI 紧凑而非拥挤
+桌面端面向科研管理人员，以扫描效率为目标。减少大 Hero 和过宽留白；保留明确层级、状态和可访问点击区域。
