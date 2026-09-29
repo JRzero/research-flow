@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface ResearchFlowService {
+    List<Map<String,Object>> listAssignableUsers(String keyword);
     Map<String,Object> dashboard(Long userId, boolean viewAll);
     Map<String,Object> analytics(Long userId, boolean viewAll);
 
