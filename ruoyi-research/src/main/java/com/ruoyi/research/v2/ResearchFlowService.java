@@ -35,6 +35,7 @@ public interface ResearchFlowService {
     void updateRiskStatus(Long projectId, Long riskId, String status, Long userId, boolean manageAll, String username);
     Long convertRiskToIssue(Long projectId, Long riskId, Map<String,Object> input, Long userId, boolean manageAll, String username);
     void addIssue(Long projectId, Map<String,Object> input, Long userId, boolean manageAll, String username);
+    void addDecision(Long projectId, Map<String,Object> input, Long userId, boolean manageAll, String username);
     void updateIssueStatus(Long projectId, Long issueId, String status, Map<String,Object> input, Long userId, boolean manageAll, String username);
     Map<String,Object> risksAndIssues(Long userId, boolean viewAll);
 
