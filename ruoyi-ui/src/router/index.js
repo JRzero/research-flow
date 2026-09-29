@@ -70,6 +70,7 @@ export const constantRoutes = [
     hidden: true,
     children: [
       { path: 'dashboard', component: () => import('@/views/research/dashboard/index.vue'), name: 'ResearchDashboard', meta: { title: '科研项目工作台' } },
+      { path: 'proposals', component: () => import('@/views/research/proposals/index.vue'), name: 'ResearchProposals', meta: { title: '项目申请' } },
       { path: 'projects', component: () => import('@/views/research/projects/index.vue'), name: 'ResearchProjects', meta: { title: '科研项目' } },
       { path: 'projects/:projectId', component: () => import('@/views/research/projectDetail/index.vue'), name: 'ResearchProjectDetail', meta: { title: '项目工作空间' } },
       { path: 'approvals', component: () => import('@/views/research/approvals/index.vue'), name: 'ResearchApprovals', meta: { title: '审批中心' } },
