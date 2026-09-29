@@ -261,9 +261,39 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     @Transactional
     public void applyChange(Long projectId,Long changeId,Long userId,boolean manageAll,String username){
         Map<String,Object>p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("APPROVED".equals(s(c,"status")),"仅已批准变更可以应用");
-        String end=p.get("plannedEndDate")==null?null:p.get("plannedEndDate").toString();BigDecimal budget=money(p.get("currentBudget"));
-        for(Map<String,Object> item:mapper.selectChangeItems(changeId)){String field=s(item,"fieldCode");if("planned_end_date".equals(field))end=s(item,"afterValue");if("current_budget".equals(field)||"total_budget".equals(field))budget=money(item.get("afterValue"));}
-        mapper.updateProjectCurrentPlan(projectId,end,budget);p=requiredProject(projectId);Long baselineId=createBaseline(p,"CHANGE_REQUEST",changeId,userId);mapper.updateProjectBaseline(projectId,baselineId,"ACTIVE");mapper.updateChangeStatus(changeId,"APPLIED",username);
+        String end=p.get("plannedEndDate")==null?null:p.get("plannedEndDate").toString();
+        BigDecimal originalBudget=money(p.get("currentBudget"));
+        BigDecimal budget=originalBudget;
+        for(Map<String,Object> item:mapper.selectChangeItems(changeId)){
+            String field=s(item,"fieldCode");
+            if("planned_end_date".equals(field)) end=s(item,"afterValue");
+            if("current_budget".equals(field)||"total_budget".equals(field)) budget=money(item.get("afterValue"));
+        }
+        mapper.updateProjectCurrentPlan(projectId,end,budget);
+        Long newBudgetId=null;
+        if(budget.compareTo(originalBudget)!=0){
+            Map<String,Object> previous=mapper.selectCurrentBudget(projectId);
+            int nextVersion=mapper.nextBudgetVersion(projectId)+1;
+            mapper.deactivateBudgets(projectId);
+            Map<String,Object> versioned=new LinkedHashMap<>();
+            versioned.put("projectId",projectId);versioned.put("versionNo",nextVersion);versioned.put("totalAmount",budget);
+            mapper.insertBudget(versioned);
+            newBudgetId=longValue(versioned.get("budgetId"));
+            if(previous!=null){
+                mapper.copyBudgetLines(longValue(previous.get("budgetId")),newBudgetId);
+                BigDecimal delta=budget.subtract(originalBudget);
+                if(delta.compareTo(BigDecimal.ZERO)!=0){
+                    Map<String,Object> adjustment=new LinkedHashMap<>();
+                    adjustment.put("budgetId",newBudgetId);adjustment.put("category","预算调整");adjustment.put("plannedAmount",delta);adjustment.put("description","由 "+s(c,"changeNo")+" 批准变更产生");
+                    mapper.insertBudgetLine(adjustment);
+                }
+            }
+        }
+        p=requiredProject(projectId);
+        Long baselineId=createBaseline(p,"CHANGE_REQUEST",changeId,userId);
+        mapper.updateProjectBaseline(projectId,baselineId,"ACTIVE");
+        if(newBudgetId!=null) mapper.updateBudgetBaseline(newBudgetId,baselineId);
+        mapper.updateChangeStatus(changeId,"APPLIED",username);
     }
 
     @Override
