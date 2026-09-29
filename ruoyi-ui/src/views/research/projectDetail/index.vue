@@ -185,7 +185,7 @@ function tone(s){return s==='ACTIVE'||s==='CLOSED'?'success':s==='PLANNING'||s==
 function itemType(s){return ({PHASE:'阶段',WORK_PACKAGE:'工作包',TASK:'任务',MILESTONE:'里程碑'})[s]||s}
 function workStatus(s){return ({NOT_STARTED:'未开始',IN_PROGRESS:'进行中',BLOCKED:'阻塞',DONE:'完成',CANCELLED:'取消'})[s]||s}
 function reportType(s){return ({MONTHLY:'月报',QUARTERLY:'季度报告',ANNUAL:'年度报告',MIDTERM:'中期检查',AD_HOC:'专项报告'})[s]||s}
-function roleText(s){return ({PI:'PI',PROJECT_MANAGER:'项目经理',RESEARCHER:'研究人员',FINANCE_CONTACT:'财务接口',SPONSOR:'Sponsor',MEMBER:'成员'})[s]||s}
+function roleText(s){return ({PI:'PI',PROJECT_MANAGER:'项目经理',RESEARCHER:'研究人员',TECHNICAL_LEAD:'技术负责人',FINANCE_CONTACT:'财务接口',SPONSOR:'Sponsor',MEMBER:'成员'})[s]||s}
 function issueStatus(s){return ({OPEN:'开放',IN_PROGRESS:'处理中',RESOLVED:'已解决',CLOSED:'已关闭'})[s]||s}
 function changeStatus(s){return ({DRAFT:'草稿',SUBMITTED:'待审批',APPROVED:'已批准待应用',REJECTED:'已拒绝',APPLIED:'已应用'})[s]||s}
 function acceptanceText(s){return ({DRAFT:'草稿',SUBMITTED:'待验收',RETURNED:'已退回',APPROVED:'已通过'})[s]||s}
