@@ -1,87 +1,77 @@
-# ResearchFlow Design System
-
-> 基于 UI UX Pro Max 的系统级工作流，为科研项目全生命周期管理场景生成并落地。
+# ResearchFlow V2 Design System
 
 ## Product profile
-
-- Product: enterprise research project management / internal operations dashboard
-- Primary users: 项目负责人、科研管理员、管理者
-- Interaction model: desktop-first productivity, mobile-compatible
-- Density: 7/10，偏数据密集但不压缩可点击区域
-- Motion: 3/10，仅保留状态反馈、hover/press、页面层级必要过渡
-- Variance: 4/10，保持企业级秩序与稳定性
+- Product: enterprise scientific research governance workspace
+- Users: 科研用户、科研管理员、管理者
+- Desktop: high-density operational UI
+- Mobile: compatible, max 5 primary bottom-nav items
+- Density: 8/10 desktop, 6/10 mobile
+- Motion: restrained
 
 ## Visual direction
+- Minimal / Swiss enterprise UI.
+- Data tables, compact rows and tree structures before oversized cards.
+- No decorative glassmorphism, neon AI gradients or empty hero sections.
+- Light neutral background, white working surfaces, dark navigation shell.
+- Status always uses text plus semantic color.
 
-- Style: Minimal / Swiss + Bento dashboard
-- Avoid: decorative glassmorphism, neon AI gradients, oversized empty hero blocks, tiny 10px body text, color-only state expression
-- Surface: light neutral background + white panels + low elevation
-- Navigation: dark stable shell, clear current-location indicator
-- Data: tabular figures for numeric values, semantic colors for risk/status, text/icon accompanies color
-
-## Tokens
-
+## Core tokens
 ```css
 --rf-bg: #f4f7fb;
 --rf-surface: #ffffff;
 --rf-surface-subtle: #f8fafc;
 --rf-border: #dfe5ec;
---rf-border-strong: #cbd5e1;
 --rf-text: #172033;
 --rf-text-secondary: #526174;
 --rf-text-muted: #667085;
 --rf-primary: #2563eb;
---rf-primary-hover: #1d4ed8;
 --rf-primary-soft: #eff6ff;
 --rf-success: #15803d;
 --rf-warning: #b45309;
 --rf-danger: #b42318;
 --rf-sidebar: #0b1220;
---rf-radius-sm: 8px;
---rf-radius-md: 12px;
---rf-radius-lg: 16px;
---rf-shadow-sm: 0 1px 2px rgba(16,24,40,.05);
---rf-shadow-md: 0 8px 24px rgba(16,24,40,.07);
 ```
 
-## Type scale
+## Density rules
+- Desktop sidebar: ~220px.
+- Desktop product header: ~64px.
+- Page spacing: 10–16px for primary operational regions.
+- Card / panel padding: 8–16px.
+- Desktop form controls: >=36px.
+- Mobile primary controls / touch targets: >=44px.
+- Metadata: 9–11px only when secondary; primary body remains readable.
+- Tables are preferred for lists with 4+ comparable attributes.
+- Project Workspace uses compact tabs, not top-level menu explosion.
 
-- 12: metadata / secondary labels only
-- 14: default UI body / buttons / inputs
-- 16: emphasized body / card title
-- 20: page title
-- 28: hero / primary metric
-- Body line-height: 1.5–1.65
+## Information architecture
+Primary navigation:
+- 工作台
+- 项目申请
+- 科研项目
+- 审批中心
+- 风险与问题
+- 数据概览
 
-Chinese font stack stays system-native to avoid external font loading and keep rendering reliable.
+Project Workspace:
+- 概览
+- 计划
+- 执行
+- 经费
+- 成果
+- 资料
+- 变更
+- 流程
 
-## Spacing
-
-Use 4/8-based rhythm: 4, 8, 12, 16, 24, 32, 40, 48.
-
-## Interaction rules
-
-- All primary pointer targets >= 44px.
-- One primary CTA per page region.
-- Hover is supplemental; click/tap is always sufficient.
-- Buttons/links/cards have visible focus states.
-- Async actions keep loading feedback.
-- No generic clickable div for primary navigation; use button/link semantics.
-- Respect `prefers-reduced-motion`.
+## Interaction
+- Domain actions use explicit verbs: 提交评审、激活项目、应用变更、验收通过。
+- Do not expose raw status editing.
+- Async actions show loading/feedback.
+- Hover is supplemental; keyboard/touch actions remain available.
+- Visible focus states.
+- Respect reduced-motion.
+- Destructive or irreversible actions require confirmation.
 
 ## Responsive
-
-- >= 1200: full sidebar, 3/4-column dashboard layouts.
-- 768–1199: compact desktop/tablet layouts.
-- < 768: bottom navigation with max 5 items; content-first stacking; no horizontal overflow.
-- Verify at 375 / 768 / 1024 / 1440 widths.
-
-## Page intent
-
-- Login: trust + clear authentication, visible labels, demo context.
-- Dashboard: decision-first, prioritize pending work/risk over decorative hero.
-- Projects: strong search/filter hierarchy, cards optimized for scanability.
-- Project Workspace: lifecycle context first, then execution tabs.
-- Approvals: action queue with decision confidence and destructive separation.
-- Risks: explainable risk evidence, no color-only severity.
-- Analytics: compact executive summary + readable lifecycle/health/budget views.
+- >=1200: 220px sidebar and high-density tables.
+- 768–1199: 72px compact sidebar, content remains table-first where possible.
+- <768: bottom navigation, max 5 visible entries; controls restore >=44px height; complex grids stack.

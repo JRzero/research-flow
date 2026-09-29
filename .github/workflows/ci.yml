@@ -43,6 +43,43 @@ jobs:
       - name: Build production bundle
         run: npm run build:prod
 
+  schema:
+    name: MySQL V2 schema
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: research_flow
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ppassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install MySQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y default-mysql-client
+      - name: Initialize RuoYi and ResearchFlow V2
+        env:
+          MYSQL_PWD: password
+        run: |
+          mysql -h 127.0.0.1 -uroot research_flow < sql/ry_20260417.sql
+          mysql -h 127.0.0.1 -uroot research_flow < sql/quartz.sql
+          mysql -h 127.0.0.1 -uroot research_flow < sql/z_research_flow.sql
+      - name: Verify V2 lifecycle seed
+        env:
+          MYSQL_PWD: password
+        run: |
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_record")" -ge 4
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_proposal where status='UNDER_REVIEW'")" -ge 1
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project where status='ACTIVE'")" -ge 1
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_baseline")" -ge 1
+
   compose:
     name: Docker Compose config
     runs-on: ubuntu-latest
