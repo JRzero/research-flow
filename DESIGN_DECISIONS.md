@@ -35,3 +35,10 @@ AI 从 ProjectContext 获取 Award、Baseline、WorkItem、Budget、Risk、Issue
 
 ## 12. UI 紧凑而非拥挤
 桌面端面向科研管理人员，以扫描效率为目标。减少大 Hero 和过宽留白；保留明确层级、状态和可访问点击区域。
+
+
+## 13. 权限由系统角色 + 项目角色共同决定
+系统层继续使用 RuoYi RBAC；项目层使用 ProjectMember role。PI / PROJECT_MANAGER 维护正式计划和变更，普通项目成员可贡献进展、风险、问题、成果与资料，FINANCE_CONTACT 可维护经费，WorkItem owner 可更新自己的工作项。审批中心仅对科研管理员开放。
+
+## 14. 验收与结项使用确定性阻断规则
+验收和结项不由 AI 决定。未完成任务/里程碑、未解决高严重度问题、计划成果缺口、预算超支或缺少归档资料等条件由确定性规则检查。验收退回后允许基于同一业务记录重新提交。
