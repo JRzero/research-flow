@@ -1,77 +1,48 @@
 import request from '@/utils/request'
 
-export function getResearchDashboard() {
-  return request({ url: '/research/dashboard', method: 'get' })
-}
+export const getResearchDashboard = () => request({ url: '/research/dashboard', method: 'get' })
+export const getResearchAnalytics = () => request({ url: '/research/analytics', method: 'get' })
 
-export function listResearchProjects(params) {
-  return request({ url: '/research/projects', method: 'get', params })
-}
+export const listProposals = params => request({ url: '/research/proposals', method: 'get', params })
+export const getProposal = id => request({ url: `/research/proposals/${id}`, method: 'get' })
+export const createProposal = data => request({ url: '/research/proposals', method: 'post', data })
+export const updateProposal = (id, data) => request({ url: `/research/proposals/${id}`, method: 'put', data })
+export const validateProposal = id => request({ url: `/research/proposals/${id}/validation`, method: 'get' })
+export const submitProposal = id => request({ url: `/research/proposals/${id}/submit`, method: 'post' })
+export const approveProposal = (id, data) => request({ url: `/research/proposals/${id}/approve`, method: 'post', data })
+export const rejectProposal = (id, comment) => request({ url: `/research/proposals/${id}/reject`, method: 'post', data: { comment } })
+export const addProposalMember = (id, data) => request({ url: `/research/proposals/${id}/members`, method: 'post', data })
+export const saveProposalBudget = (id, data) => request({ url: `/research/proposals/${id}/budget`, method: 'put', data })
+export const addExpectedOutput = (id, data) => request({ url: `/research/proposals/${id}/outputs`, method: 'post', data })
+export const attachProposalDocument = (id, data) => request({ url: `/research/proposals/${id}/documents`, method: 'post', data })
 
-export function getResearchProject(projectId) {
-  return request({ url: `/research/projects/${projectId}`, method: 'get' })
-}
+export const listResearchProjects = params => request({ url: '/research/projects', method: 'get', params })
+export const getResearchProject = id => request({ url: `/research/projects/${id}`, method: 'get' })
+export const addProjectMember = (id, data) => request({ url: `/research/projects/${id}/members`, method: 'post', data })
+export const addWorkItem = (id, data) => request({ url: `/research/projects/${id}/work-items`, method: 'post', data })
+export const workItemAction = (id, workItemId, action) => request({ url: `/research/projects/${id}/work-items/${workItemId}/${action}`, method: 'post' })
+export const activateProject = id => request({ url: `/research/projects/${id}/activate`, method: 'post' })
+export const addProgressReport = (id, data) => request({ url: `/research/projects/${id}/progress-reports`, method: 'post', data })
+export const addExpense = (id, data) => request({ url: `/research/projects/${id}/expenses`, method: 'post', data })
+export const addOutcome = (id, data) => request({ url: `/research/projects/${id}/outcomes`, method: 'post', data })
+export const attachProjectDocument = (id, data) => request({ url: `/research/projects/${id}/documents`, method: 'post', data })
 
-export function createResearchProject(data) {
-  return request({ url: '/research/projects', method: 'post', data })
-}
+export const addRisk = (id, data) => request({ url: `/research/projects/${id}/risks`, method: 'post', data })
+export const setRiskStatus = (id, riskId, status) => request({ url: `/research/projects/${id}/risks/${riskId}/status/${status}`, method: 'post' })
+export const convertRiskToIssue = (id, riskId, data = {}) => request({ url: `/research/projects/${id}/risks/${riskId}/occur`, method: 'post', data })
+export const addIssue = (id, data) => request({ url: `/research/projects/${id}/issues`, method: 'post', data })
+export const setIssueStatus = (id, issueId, status, data = {}) => request({ url: `/research/projects/${id}/issues/${issueId}/status/${status}`, method: 'post', data })
+export const getGovernance = () => request({ url: '/research/governance', method: 'get' })
 
-export function updateResearchProject(projectId, data) {
-  return request({ url: `/research/projects/${projectId}`, method: 'put', data })
-}
+export const createChange = (id, data) => request({ url: `/research/projects/${id}/changes`, method: 'post', data })
+export const submitChange = (id, changeId) => request({ url: `/research/projects/${id}/changes/${changeId}/submit`, method: 'post' })
+export const approveChange = (id, changeId, comment) => request({ url: `/research/projects/${id}/changes/${changeId}/approve`, method: 'post', data: { comment } })
+export const rejectChange = (id, changeId, comment) => request({ url: `/research/projects/${id}/changes/${changeId}/reject`, method: 'post', data: { comment } })
+export const applyChange = (id, changeId) => request({ url: `/research/projects/${id}/changes/${changeId}/apply`, method: 'post' })
 
-export function submitResearchProject(projectId) {
-  return request({ url: `/research/projects/${projectId}/submit`, method: 'post' })
-}
+export const submitAcceptance = (id, data) => request({ url: `/research/projects/${id}/acceptance`, method: 'post', data })
+export const reviewAcceptance = (id, decision, comment) => request({ url: `/research/projects/${id}/acceptance/review/${decision}`, method: 'post', data: { comment } })
+export const completeCloseout = (id, data) => request({ url: `/research/projects/${id}/closeout`, method: 'post', data })
 
-export function approveResearchProject(projectId, comment) {
-  return request({ url: `/research/projects/${projectId}/approve`, method: 'post', data: { comment } })
-}
-
-export function rejectResearchProject(projectId, comment) {
-  return request({ url: `/research/projects/${projectId}/reject`, method: 'post', data: { comment } })
-}
-
-export function startResearchProject(projectId) {
-  return request({ url: `/research/projects/${projectId}/start`, method: 'post' })
-}
-
-export function addResearchMilestone(projectId, data) {
-  return request({ url: `/research/projects/${projectId}/milestones`, method: 'post', data })
-}
-
-export function completeResearchMilestone(projectId, milestoneId) {
-  return request({ url: `/research/projects/${projectId}/milestones/${milestoneId}/complete`, method: 'post' })
-}
-
-export function addResearchProgress(projectId, data) {
-  return request({ url: `/research/projects/${projectId}/progress`, method: 'post', data })
-}
-
-export function addResearchExpense(projectId, data) {
-  return request({ url: `/research/projects/${projectId}/expenses`, method: 'post', data })
-}
-
-export function addResearchDeliverable(projectId, data) {
-  return request({ url: `/research/projects/${projectId}/deliverables`, method: 'post', data })
-}
-
-export function submitResearchAcceptance(projectId, data) {
-  return request({ url: `/research/projects/${projectId}/acceptance`, method: 'post', data })
-}
-
-export function approveResearchAcceptance(projectId, comment) {
-  return request({ url: `/research/projects/${projectId}/acceptance/approve`, method: 'post', data: { comment } })
-}
-
-export function rejectResearchAcceptance(projectId, comment) {
-  return request({ url: `/research/projects/${projectId}/acceptance/reject`, method: 'post', data: { comment } })
-}
-
-export function listResearchRisks() {
-  return request({ url: '/research/risks', method: 'get' })
-}
-
-export function generateResearchProposal(description) {
-  return request({ url: '/research/ai/proposal', method: 'post', data: { description } })
-}
+export const getApprovalCenter = () => request({ url: '/research/approvals', method: 'get' })
+export const generateResearchProposal = description => request({ url: '/research/ai/proposal', method: 'post', data: { description } })

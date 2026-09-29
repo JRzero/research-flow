@@ -1,342 +1,52 @@
 <template>
   <div class="research-shell">
     <a class="skip-link" href="#research-main">跳到主内容</a>
-
-    <aside class="research-sidebar" aria-label="ResearchFlow 主导航">
-      <button class="brand" type="button" aria-label="返回科研项目工作台" @click="router.push('/research/dashboard')">
-        <img class="brand-mark" :src="brandMark" alt="" aria-hidden="true" />
-        <div class="brand-copy">
-          <div class="brand-name">ResearchFlow</div>
-          <div class="brand-sub">科研项目管理</div>
-        </div>
-      </button>
-
-      <nav class="product-nav" aria-label="产品导航">
-        <router-link
-          v-for="item in navItems"
-          :key="item.path"
-          :to="item.path"
-          class="nav-item"
-          :aria-label="item.label"
-        >
-          <el-icon aria-hidden="true"><component :is="item.icon" /></el-icon>
-          <span>{{ item.label }}</span>
-          <span v-if="item.badge" class="nav-badge">{{ item.badge }}</span>
+    <aside class="sidebar">
+      <button class="brand" type="button" @click="router.push('/research/dashboard')"><img :src="brandMark" alt=""><div><strong>ResearchFlow</strong><span>科研项目治理</span></div></button>
+      <nav class="nav">
+        <router-link v-for="item in navItems" :key="item.path" :to="item.path" :class="['nav-item',{'mobile-hide':item.mobileHide}]">
+          <el-icon><component :is="item.icon"/></el-icon><span>{{ item.label }}</span>
         </router-link>
       </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-card">
-          <el-avatar :size="40" :src="userStore.avatar" aria-hidden="true">
-            {{ (userStore.nickName || userStore.name || 'R').slice(0, 1) }}
-          </el-avatar>
-          <div class="user-meta">
-            <strong>{{ userStore.nickName || userStore.name }}</strong>
-            <span>{{ roleText }}</span>
-          </div>
-          <el-dropdown trigger="click" @command="handleCommand">
-            <el-button text circle aria-label="打开用户菜单"><el-icon aria-hidden="true"><MoreFilled /></el-icon></el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item v-if="isAdmin" command="admin">系统管理</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </div>
+      <div class="user"><el-avatar :size="32">{{ (userStore.nickName||userStore.name||'R').slice(0,1) }}</el-avatar><div><strong>{{ userStore.nickName||userStore.name }}</strong><span>{{ roleText }}</span></div><el-dropdown @command="command"><el-button text circle><el-icon><MoreFilled/></el-icon></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="profile">个人中心</el-dropdown-item><el-dropdown-item v-if="isAdmin" command="admin">系统管理</el-dropdown-item><el-dropdown-item divided command="logout">退出</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div>
     </aside>
-
-    <main id="research-main" class="research-main" tabindex="-1">
-      <header class="research-header">
-        <div class="header-copy">
-          <div class="page-title">{{ currentTitle }}</div>
-          <div class="page-subtitle">{{ currentSubtitle }}</div>
-        </div>
-        <div class="header-actions" aria-label="当前角色">
-          <span class="role-chip" :class="roleClass">
-            <span class="role-dot" aria-hidden="true"></span>
-            {{ roleText }}
-          </span>
-        </div>
-      </header>
-      <section class="research-content">
-        <router-view />
-      </section>
+    <main id="research-main" class="main">
+      <header class="header"><div><h1>{{ page[0] }}</h1><p>{{ page[1] }}</p></div><span class="role">{{ roleText }}</span></header>
+      <section class="content"><router-view/></section>
     </main>
   </div>
 </template>
-
 <script setup>
 import useUserStore from '@/store/modules/user'
 import brandMark from '@/assets/logo/researchflow-mark.svg'
-
-const router = useRouter()
-const route = useRoute()
-const userStore = useUserStore()
-
-const navItems = [
-  { path: '/research/dashboard', label: '工作台', icon: 'HomeFilled' },
-  { path: '/research/projects', label: '项目', icon: 'FolderOpened' },
-  { path: '/research/approvals', label: '审批', icon: 'Finished' },
-  { path: '/research/risks', label: '风险', icon: 'Warning' },
-  { path: '/research/analytics', label: '数据', icon: 'DataAnalysis' }
+const router=useRouter(),route=useRoute(),userStore=useUserStore()
+const navItems=[
+ {path:'/research/dashboard',label:'工作台',icon:'HomeFilled'},
+ {path:'/research/proposals',label:'项目申请',icon:'EditPen'},
+ {path:'/research/projects',label:'科研项目',icon:'FolderOpened'},
+ {path:'/research/approvals',label:'审批中心',icon:'Finished'},
+ {path:'/research/risks',label:'风险问题',icon:'Warning'},
+ {path:'/research/analytics',label:'数据概览',icon:'DataAnalysis',mobileHide:true}
 ]
-
-const isAdmin = computed(() => userStore.roles.includes('admin'))
-const isResearchAdmin = computed(() => isAdmin.value || userStore.roles.includes('research_admin'))
-const isManager = computed(() => userStore.roles.includes('research_manager'))
-const roleText = computed(() => isResearchAdmin.value ? '科研管理员' : isManager.value ? '管理者' : '项目负责人')
-const roleClass = computed(() => isResearchAdmin.value ? 'admin' : isManager.value ? 'manager' : 'owner')
-
-const titleMap = {
-  '/research/dashboard': ['科研项目工作台', '优先处理待办，持续关注进展与风险'],
-  '/research/projects': ['科研项目', '从申报到结项的统一项目空间'],
-  '/research/approvals': ['审批中心', '集中处理项目申报、启动与成果验收'],
-  '/research/risks': ['风险项目', '用可解释规则识别需要优先关注的项目'],
-  '/research/analytics': ['数据概览', '掌握项目结构、进度与预算执行情况']
+const isAdmin=computed(()=>userStore.roles.includes('admin'))
+const roleText=computed(()=>isAdmin.value||userStore.roles.includes('research_admin')?'科研管理员':userStore.roles.includes('research_manager')?'管理者':'科研用户')
+const map={
+ '/research/dashboard':['科研工作台','申报、执行与治理事项一屏掌握'],
+ '/research/proposals':['项目申请','从研究想法到正式立项'],
+ '/research/projects':['科研项目','正式立项后的计划、执行与结项'],
+ '/research/approvals':['审批中心','集中处理申报、变更与验收'],
+ '/research/risks':['风险与问题','区分潜在风险与已发生问题'],
+ '/research/analytics':['数据概览','项目组合、进度与经费结构']
 }
-const currentTitle = computed(() => route.path.startsWith('/research/projects/') ? '项目工作空间' : (titleMap[route.path]?.[0] || 'ResearchFlow'))
-const currentSubtitle = computed(() => route.path.startsWith('/research/projects/') ? '在一个空间内推进项目全生命周期工作' : (titleMap[route.path]?.[1] || ''))
-
-function handleCommand(command) {
-  if (command === 'profile') router.push('/user/profile')
-  if (command === 'admin') router.push('/system/user')
-  if (command === 'logout') {
-    userStore.logOut().then(() => router.push('/login'))
-  }
-}
+const page=computed(()=>route.path.startsWith('/research/projects/')?['项目工作空间','计划、执行、治理与结项集中处理']:(map[route.path]||['ResearchFlow','科研项目全过程治理']))
+function command(c){if(c==='profile')router.push('/user/profile');if(c==='admin')router.push('/system/user');if(c==='logout')userStore.logOut().then(()=>router.push('/login'))}
 </script>
-
 <style scoped lang="scss">
-.research-shell {
-  min-height: 100dvh;
-  background: var(--rf-bg);
-  color: var(--rf-text);
-  font-size: 14px;
-}
-.skip-link {
-  position: fixed;
-  top: 10px;
-  left: 12px;
-  z-index: 1000;
-  transform: translateY(-140%);
-  padding: 10px 14px;
-  border-radius: var(--rf-radius-sm);
-  background: var(--rf-surface);
-  color: var(--rf-primary);
-  font-weight: 700;
-  box-shadow: var(--rf-shadow-md);
-  transition: transform var(--rf-motion-fast) ease;
-}
-.skip-link:focus { transform: translateY(0); }
-
-.research-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 248px;
-  background: var(--rf-sidebar);
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  z-index: 40;
-  border-right: 1px solid rgba(148, 163, 184, .12);
-}
-.brand {
-  width: 100%;
-  height: 88px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 22px;
-  text-align: left;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(148, 163, 184, .12);
-}
-.brand:hover { background: rgba(255, 255, 255, .035); }
-.brand-mark {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  display: block;
-  filter: drop-shadow(0 8px 18px rgba(37, 99, 235, .22));
-}
-.brand-name { font-size: 16px; font-weight: 750; letter-spacing: .1px; }
-.brand-sub { margin-top: 3px; color: var(--rf-sidebar-muted); font-size: 12px; }
-
-.product-nav {
-  padding: 18px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-}
-.nav-item {
-  position: relative;
-  min-height: 48px;
-  padding: 0 14px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #a8b5c7;
-  font-size: 14px;
-  font-weight: 520;
-  text-decoration: none;
-  transition: background var(--rf-motion-fast) ease, color var(--rf-motion-fast) ease, transform var(--rf-motion-fast) ease;
-  touch-action: manipulation;
-}
-.nav-item:hover { color: #fff; background: rgba(255, 255, 255, .065); }
-.nav-item:active { transform: scale(.985); }
-.nav-item.router-link-active {
-  color: #fff;
-  background: rgba(37, 99, 235, .24);
-  box-shadow: inset 3px 0 #60a5fa;
-}
-.nav-item .el-icon { font-size: 18px; }
-.nav-badge {
-  margin-left: auto;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: #dc2626;
-  color: #fff;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.sidebar-footer { padding: 14px; border-top: 1px solid rgba(148, 163, 184, .12); }
-.user-card {
-  min-height: 60px;
-  padding: 8px 8px 8px 10px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, .035);
-}
-.user-meta { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.user-meta strong { overflow: hidden; color: #f8fafc; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.user-meta span { margin-top: 4px; color: var(--rf-sidebar-muted); font-size: 12px; }
-.sidebar-footer :deep(.el-button) { width: 44px; height: 44px; color: #a8b5c7; }
-
-.research-main { min-height: 100dvh; margin-left: 248px; }
-.research-header {
-  height: 88px;
-  padding: 0 32px;
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  background: color-mix(in srgb, var(--rf-surface) 92%, transparent);
-  border-bottom: 1px solid var(--rf-border);
-  backdrop-filter: blur(12px);
-}
-.page-title { color: var(--rf-text); font-size: 20px; font-weight: 720; letter-spacing: -.2px; }
-.page-subtitle { margin-top: 5px; color: var(--rf-text-muted); font-size: 13px; line-height: 1.4; }
-.header-actions { display: flex; align-items: center; gap: 10px; }
-.role-chip {
-  min-height: 34px;
-  padding: 0 11px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--rf-border);
-  border-radius: 999px;
-  background: var(--rf-surface-subtle);
-  color: var(--rf-text-secondary);
-  font-size: 12px;
-  font-weight: 650;
-}
-.role-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rf-primary); }
-.role-chip.manager .role-dot { background: var(--rf-success); }
-.role-chip.owner .role-dot { background: var(--rf-warning); }
-
-.research-content {
-  width: min(100%, 1500px);
-  margin: 0 auto;
-  padding: 28px 32px 56px;
-}
-
-@media (max-width: 1024px) {
-  .research-sidebar { width: 84px; }
-  .brand { justify-content: center; padding: 0; }
-  .brand-copy, .nav-item > span:not(.nav-badge), .user-meta, .sidebar-footer .el-dropdown { display: none; }
-  .product-nav { padding: 16px 10px; }
-  .nav-item { justify-content: center; padding: 0; }
-  .nav-item.router-link-active { box-shadow: inset 3px 0 #60a5fa; }
-  .sidebar-footer { padding: 12px; }
-  .user-card { justify-content: center; padding: 8px; background: transparent; }
-  .research-main { margin-left: 84px; }
-  .research-header, .research-content { padding-left: 24px; padding-right: 24px; }
-}
-
-@media (max-width: 767px) {
-  .research-shell { padding-bottom: 72px; }
-  .research-sidebar {
-    inset: auto 0 0 0;
-    width: auto;
-    height: 72px;
-    border-top: 1px solid var(--rf-border);
-    border-right: 0;
-    background: color-mix(in srgb, var(--rf-surface) 96%, transparent);
-    backdrop-filter: blur(14px);
-  }
-  .brand, .sidebar-footer { display: none; }
-  .product-nav {
-    height: 100%;
-    padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-    flex-direction: row;
-    gap: 2px;
-  }
-  .nav-item {
-    min-width: 0;
-    min-height: 58px;
-    flex: 1;
-    padding: 5px 2px;
-    border-radius: 10px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 3px;
-    color: var(--rf-text-muted);
-    font-size: 11px;
-  }
-  .nav-item > span:not(.nav-badge) { display: block; }
-  .nav-item .el-icon { font-size: 20px; }
-  .nav-item:hover { color: var(--rf-text); background: var(--rf-surface-subtle); }
-  .nav-item.router-link-active {
-    color: var(--rf-primary);
-    background: var(--rf-primary-soft);
-    box-shadow: none;
-  }
-  .nav-badge { position: absolute; top: 5px; right: calc(50% - 24px); }
-  .research-main { margin-left: 0; }
-  .research-header {
-    height: auto;
-    min-height: 78px;
-    padding: 14px 16px;
-    align-items: flex-start;
-  }
-  .header-copy { min-width: 0; }
-  .page-title { font-size: 18px; }
-  .page-subtitle { font-size: 12px; }
-  .role-chip { min-height: 30px; padding: 0 8px; font-size: 11px; white-space: nowrap; }
-  .research-content { padding: 18px 16px 32px; }
-}
-
-@media (max-width: 420px) {
-  .page-subtitle { display: none; }
-  .research-header { min-height: 62px; align-items: center; }
-  .role-chip { max-width: 112px; overflow: hidden; text-overflow: ellipsis; }
-}
+.research-shell{min-height:100dvh;background:var(--rf-bg);color:var(--rf-text)}.skip-link{position:fixed;left:12px;top:8px;z-index:1000;transform:translateY(-140%);padding:8px 12px;background:#fff;border-radius:8px}.skip-link:focus{transform:none}
+.sidebar{position:fixed;inset:0 auto 0 0;width:220px;background:var(--rf-sidebar);display:flex;flex-direction:column;z-index:40}.brand{height:64px;padding:0 16px;border:0;border-bottom:1px solid rgba(148,163,184,.14);background:none;color:#fff;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer}.brand img{width:34px;height:34px}.brand>div{display:flex;flex-direction:column;gap:2px}.brand strong{font-size:14px}.brand span{font-size:11px;color:var(--rf-sidebar-muted)}
+.nav{padding:10px 8px;display:flex;flex-direction:column;gap:3px;flex:1}.nav-item{min-height:40px;padding:0 11px;border-radius:8px;display:flex;align-items:center;gap:10px;color:#a8b5c7;text-decoration:none;font-size:13px}.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.router-link-active{background:rgba(37,99,235,.25);color:#fff;box-shadow:inset 2px 0 #60a5fa}.nav-item .el-icon{font-size:17px}
+.user{margin:8px;padding:8px;border-top:1px solid rgba(148,163,184,.14);display:flex;align-items:center;gap:8px;color:#fff}.user>div{min-width:0;flex:1;display:flex;flex-direction:column}.user strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}.user span{font-size:11px;color:var(--rf-sidebar-muted)}.user :deep(.el-button){color:#a8b5c7}
+.main{min-height:100dvh;margin-left:220px}.header{height:64px;padding:0 20px;border-bottom:1px solid var(--rf-border);position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--rf-surface) 94%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between}.header h1{margin:0;font-size:17px;font-weight:720}.header p{margin:3px 0 0;color:var(--rf-text-muted);font-size:11px}.role{padding:5px 8px;border:1px solid var(--rf-border);border-radius:999px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-secondary)}.content{width:min(100%,1540px);margin:auto;padding:16px 20px 36px}
+@media(max-width:1024px){.sidebar{width:72px}.brand{justify-content:center;padding:0}.brand>div,.nav-item span,.user>div,.user .el-dropdown{display:none}.nav-item{justify-content:center;padding:0}.main{margin-left:72px}.content{padding:14px 16px}}
+@media(max-width:767px){.research-shell{padding-bottom:68px}.sidebar{inset:auto 0 0 0;width:auto;height:68px;background:var(--rf-surface);border-top:1px solid var(--rf-border)}.brand,.user{display:none}.nav{padding:5px 8px;flex-direction:row;gap:2px}.nav-item{min-width:0;min-height:56px;flex:1;padding:4px;flex-direction:column;justify-content:center;gap:2px;color:var(--rf-text-muted);font-size:10px}.nav-item span{display:block}.nav-item.router-link-active{box-shadow:none;background:var(--rf-primary-soft);color:var(--rf-primary)}.nav-item.mobile-hide{display:none}.main{margin-left:0}.header{height:58px;padding:0 14px}.header p{display:none}.content{padding:12px 12px 24px}}
 </style>

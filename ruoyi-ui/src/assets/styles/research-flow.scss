@@ -1,142 +1,21 @@
-/* ResearchFlow product design tokens
- * Derived from the UI UX Pro Max system-wide guidance:
- * semantic tokens, 4/8 spacing rhythm, accessible contrast and restrained motion.
- */
-
+/* ResearchFlow compact product tokens */
 :root {
-  --rf-bg: #f4f7fb;
-  --rf-surface: #ffffff;
-  --rf-surface-subtle: #f8fafc;
-  --rf-surface-raised: #ffffff;
-  --rf-border: #dfe5ec;
-  --rf-border-strong: #cbd5e1;
-  --rf-text: #172033;
-  --rf-text-secondary: #526174;
-  --rf-text-muted: #667085;
-  --rf-primary: #2563eb;
-  --rf-primary-hover: #1d4ed8;
-  --rf-primary-soft: #eff6ff;
-  --rf-primary-border: #bfdbfe;
-  --rf-success: #15803d;
-  --rf-success-soft: #ecfdf3;
-  --rf-warning: #b45309;
-  --rf-warning-soft: #fff7ed;
-  --rf-danger: #b42318;
-  --rf-danger-soft: #fff1f2;
-  --rf-sidebar: #0b1220;
-  --rf-sidebar-muted: #94a3b8;
-  --rf-sidebar-active: #1d4ed8;
-  --rf-radius-sm: 8px;
-  --rf-radius-md: 12px;
-  --rf-radius-lg: 16px;
-  --rf-radius-xl: 20px;
-  --rf-shadow-sm: 0 1px 2px rgba(16, 24, 40, .05);
-  --rf-shadow-md: 0 8px 24px rgba(16, 24, 40, .07);
-  --rf-shadow-lg: 0 18px 44px rgba(16, 24, 40, .10);
-  --rf-focus: 0 0 0 3px rgba(37, 99, 235, .24);
-  --rf-motion-fast: 140ms;
-  --rf-motion-base: 200ms;
-  --rf-motion-slow: 280ms;
+  --rf-bg:#f4f7fb;--rf-surface:#fff;--rf-surface-subtle:#f8fafc;--rf-surface-raised:#fff;
+  --rf-border:#dfe5ec;--rf-border-strong:#cbd5e1;--rf-text:#172033;--rf-text-secondary:#526174;--rf-text-muted:#667085;
+  --rf-primary:#2563eb;--rf-primary-hover:#1d4ed8;--rf-primary-soft:#eff6ff;--rf-primary-border:#bfdbfe;
+  --rf-success:#15803d;--rf-success-soft:#ecfdf3;--rf-warning:#b45309;--rf-warning-soft:#fff7ed;--rf-danger:#b42318;--rf-danger-soft:#fff1f2;
+  --rf-sidebar:#0b1220;--rf-sidebar-muted:#94a3b8;--rf-radius-sm:7px;--rf-radius-md:10px;--rf-radius-lg:12px;
+  --rf-shadow-sm:0 1px 2px rgba(16,24,40,.05);--rf-shadow-md:0 6px 18px rgba(16,24,40,.07);--rf-focus:0 0 0 3px rgba(37,99,235,.22);
+  --rf-motion-fast:120ms;--rf-motion-base:180ms;
 }
-
-html.dark {
-  --rf-bg: #0f172a;
-  --rf-surface: #111827;
-  --rf-surface-subtle: #172033;
-  --rf-surface-raised: #182235;
-  --rf-border: #2b3748;
-  --rf-border-strong: #415064;
-  --rf-text: #f8fafc;
-  --rf-text-secondary: #d5deea;
-  --rf-text-muted: #b2bfd0;
-  --rf-primary: #60a5fa;
-  --rf-primary-hover: #93c5fd;
-  --rf-primary-soft: rgba(37, 99, 235, .18);
-  --rf-primary-border: rgba(96, 165, 250, .35);
-  --rf-success: #4ade80;
-  --rf-success-soft: rgba(21, 128, 61, .16);
-  --rf-warning: #fbbf24;
-  --rf-warning-soft: rgba(180, 83, 9, .18);
-  --rf-danger: #fb7185;
-  --rf-danger-soft: rgba(180, 35, 24, .18);
-  --rf-sidebar: #070d19;
-}
-
-.research-shell,
-.login {
-  --el-color-primary: var(--rf-primary);
-  --el-color-primary-dark-2: var(--rf-primary-hover);
-  --el-border-radius-base: 10px;
-  --el-border-color: var(--rf-border);
-  --el-text-color-primary: var(--rf-text);
-  --el-text-color-regular: var(--rf-text-secondary);
-  --el-fill-color-blank: var(--rf-surface);
-}
-
-.research-shell :where(.el-button, .el-input__wrapper, .el-select__wrapper, .el-textarea__inner) {
-  min-height: 44px;
-}
-
-.research-shell :where(.el-button, .el-input__wrapper, .el-select__wrapper, .el-dialog, .el-message-box),
-.login :where(.el-button, .el-input__wrapper) {
-  border-radius: 10px;
-}
-
-.research-shell :where(.el-button, a, button, [role='button']):focus-visible,
-.login :where(.el-button, a, button, input):focus-visible {
-  outline: none;
-  box-shadow: var(--rf-focus);
-}
-
-.research-shell .el-dialog,
-.research-shell .el-message-box {
-  border: 1px solid var(--rf-border);
-  background: var(--rf-surface);
-  box-shadow: var(--rf-shadow-lg);
-}
-
-.research-shell .el-dialog__title,
-.research-shell .el-message-box__title {
-  color: var(--rf-text);
-  font-weight: 650;
-}
-
-.research-shell .el-form-item__label,
-.login .el-form-item__label {
-  color: var(--rf-text-secondary);
-  font-weight: 600;
-}
-
-.research-shell .el-empty__description p {
-  color: var(--rf-text-muted);
-}
-
-.rf-tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-.rf-sr-only {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border: 0 !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .research-shell *,
-  .research-shell *::before,
-  .research-shell *::after,
-  .login *,
-  .login *::before,
-  .login *::after {
-    scroll-behavior: auto !important;
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
-  }
-}
+html.dark{--rf-bg:#0f172a;--rf-surface:#111827;--rf-surface-subtle:#172033;--rf-border:#2b3748;--rf-border-strong:#415064;--rf-text:#f8fafc;--rf-text-secondary:#d5deea;--rf-text-muted:#b2bfd0;--rf-primary:#60a5fa;--rf-primary-hover:#93c5fd;--rf-primary-soft:rgba(37,99,235,.18);--rf-primary-border:rgba(96,165,250,.35);--rf-success:#4ade80;--rf-success-soft:rgba(21,128,61,.16);--rf-warning:#fbbf24;--rf-warning-soft:rgba(180,83,9,.18);--rf-danger:#fb7185;--rf-danger-soft:rgba(180,35,24,.18);--rf-sidebar:#070d19}
+.research-shell,.login{--el-color-primary:var(--rf-primary);--el-border-radius-base:8px;--el-border-color:var(--rf-border);--el-text-color-primary:var(--rf-text);--el-text-color-regular:var(--rf-text-secondary);--el-fill-color-blank:var(--rf-surface)}
+.research-shell :where(.el-button,.el-input__wrapper,.el-select__wrapper){min-height:36px}
+.research-shell :where(.el-button,.el-input__wrapper,.el-select__wrapper,.el-textarea__inner,.el-dialog,.el-message-box),.login :where(.el-button,.el-input__wrapper){border-radius:8px}
+.research-shell :where(.el-button,a,button,[role='button']):focus-visible,.login :where(.el-button,a,button,input):focus-visible{outline:none;box-shadow:var(--rf-focus)}
+.research-shell .el-dialog,.research-shell .el-message-box{border:1px solid var(--rf-border);background:var(--rf-surface);box-shadow:var(--rf-shadow-md)}
+.research-shell .el-dialog__header{padding-bottom:12px}.research-shell .el-dialog__body{padding-top:8px}.research-shell .el-form-item{margin-bottom:14px}.research-shell .el-form-item__label{color:var(--rf-text-secondary);font-weight:600;font-size:12px}
+.research-shell .el-table{--el-table-header-bg-color:var(--rf-surface-subtle);--el-table-row-hover-bg-color:var(--rf-primary-soft);font-size:12px}.research-shell .el-table th.el-table__cell{height:38px;padding:5px 0}.research-shell .el-table td.el-table__cell{padding:7px 0}
+.rf-tabular{font-variant-numeric:tabular-nums}.rf-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:767px){.research-shell :where(.el-button,.el-input__wrapper,.el-select__wrapper){min-height:44px}}
+@media(prefers-reduced-motion:reduce){.research-shell *,.research-shell *::before,.research-shell *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
