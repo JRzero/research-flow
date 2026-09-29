@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 
+export const listResearchUsers = params => request({ url: '/research/users', method: 'get', params })
 export const getResearchDashboard = () => request({ url: '/research/dashboard', method: 'get' })
 export const getResearchAnalytics = () => request({ url: '/research/analytics', method: 'get' })
 
