@@ -7,7 +7,7 @@ ResearchFlow 是一个面向科研院所的科研项目全生命周期管理 MVP
 ## 核心体验
 
 - **科研项目工作台**：项目总览、待办、风险和预算执行。
-- **项目集合**：以项目卡片而不是 CRUD 表格浏览科研项目。
+- **项目集合**：以项目卡片而不是 CRUD 表格浏览科研项目，申报支持多附件上传。
 - **Project Workspace**：在一个项目空间内查看概览、里程碑、进展、经费、成果、审批和验收。
 - **审批中心**：处理项目申报、项目启动与成果验收。
 - **风险项目**：基于时间进度、任务进度和预算执行的可解释规则识别。
@@ -68,12 +68,15 @@ docker compose up -d --build
 - 科研角色和演示账号
 - 6 个不同生命周期的演示项目
 - 里程碑、进展、经费、成果、审批和验收演示数据
+- 项目申报附件字段及本地上传目录
 
 访问：
 
 - 产品端：http://localhost:8088
 - 后端 API：http://localhost:18080
 - Swagger：http://localhost:18080/swagger-ui.html
+
+项目申报附件默认保存在 Docker 卷 `research_flow_uploads` 中；项目表保存附件名称和访问路径。现有数据库升级时，`sql/zz_20260929_project_application_attachments.sql` 会补充附件字段。
 
 如果之前启动过旧数据库卷，初始化 SQL 不会再次执行。需要全新演示库时：
 
@@ -164,6 +167,7 @@ ruoyi-ui/src/views/research/
   analytics/                         # 数据概览
 
 sql/z_research_flow.sql              # 业务表和演示数据
+sql/zz_20260929_project_application_attachments.sql # 现有数据库附件字段迁移
 PRODUCT_REQUIREMENTS.md              # MVP 需求说明
 DESIGN_DECISIONS.md                  # 设计决策说明
 ```
