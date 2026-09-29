@@ -238,7 +238,7 @@
 
     <el-dialog v-model="acceptanceVisible" title="提交项目验收" width="620px"><el-form :model="acceptanceForm" label-position="top" class="compact-form"><el-form-item label="项目总结"><el-input v-model="acceptanceForm.projectSummary" type="textarea" :rows="4"/></el-form-item><el-form-item label="任务完成情况"><el-input v-model="acceptanceForm.completionStatement" type="textarea" :rows="3"/></el-form-item><el-form-item label="未完成事项"><el-input v-model="acceptanceForm.outstandingItems" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="acceptanceVisible=false">取消</el-button><el-button type="success" @click="saveAcceptance">提交验收</el-button></template></el-dialog>
 
-    <el-dialog v-model="closeoutVisible" title="项目结项检查" width="560px"><div class="checklist"><el-checkbox v-model="closeoutForm.finalReportComplete">最终研究报告完整</el-checkbox><el-checkbox v-model="closeoutForm.financeComplete">经费信息完整</el-checkbox><el-checkbox v-model="closeoutForm.outputsComplete">成果登记完整</el-checkbox><el-checkbox v-model="closeoutForm.documentsComplete">项目资料完整</el-checkbox><el-checkbox v-model="closeoutForm.archiveComplete">项目归档完成</el-checkbox></div><el-input v-model="closeoutForm.conclusion" type="textarea" :rows="3" placeholder="结项说明"/></el-dialog>
+    <el-dialog v-model="closeoutVisible" title="项目结项检查" width="560px"><div class="checklist"><el-checkbox v-model="closeoutForm.finalReportComplete">最终研究报告完整</el-checkbox><el-checkbox v-model="closeoutForm.financeComplete">经费信息完整</el-checkbox><el-checkbox v-model="closeoutForm.outputsComplete">成果登记完整</el-checkbox><el-checkbox v-model="closeoutForm.documentsComplete">项目资料完整</el-checkbox><el-checkbox v-model="closeoutForm.archiveComplete">项目归档完成</el-checkbox></div><el-input v-model="closeoutForm.conclusion" type="textarea" :rows="3" placeholder="结项说明"/><template #footer><el-button @click="closeoutVisible=false">取消</el-button><el-button type="primary" @click="saveCloseout">完成结项</el-button></template></el-dialog>
   </div>
 </template>
 
@@ -307,7 +307,7 @@ function riskText(t){return ({LOW:'低',MEDIUM:'中',HIGH:'高',CRITICAL:'严重
 function baselineSource(s){return ({AWARD:'立项批复',CHANGE_REQUEST:'批准变更'})[s]||s||'-'}
 function outputType(t){return ({PAPER:'论文',PATENT:'专利',SOFTWARE:'软件',DATASET:'数据集',STANDARD:'标准',REPORT:'报告',PROTOTYPE:'原型',OTHER:'其他'})[t]||t}
 function acceptanceStatus(s){return ({DRAFT:'草稿',SUBMITTED:'待验收',UNDER_REVIEW:'验收中',RETURNED:'已退回',APPROVED:'已通过'})[s]||s}
-function changeItems(row){return (row.items||[]).map(x=>\`\${x.fieldCode}: \${x.beforeValue||'-'} → \${x.afterValue||'-'}\`).join('；')||'-'}
+function changeItems(row){return (row.items||[]).map(x => String(x.fieldCode) + ': ' + (x.beforeValue || '-') + ' → ' + (x.afterValue || '-')).join('；') || '-'}
 function money(v){return Number(v||0).toLocaleString('zh-CN',{maximumFractionDigits:0})}
 onMounted(load)
 </script>
