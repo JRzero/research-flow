@@ -50,12 +50,14 @@ public class ResearchProjectController extends BaseController {
         return success(researchProjectService.getProjectDetail(projectId, getUserId(), canViewAll()));
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @Log(title = "科研项目", businessType = BusinessType.INSERT)
     @PostMapping("/projects")
     public AjaxResult create(@RequestBody ResearchProject project) {
         return success(researchProjectService.createProject(project, getUserId(), getDeptId(), getUsername()));
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @Log(title = "科研项目", businessType = BusinessType.UPDATE)
     @PutMapping("/projects/{projectId}")
     public AjaxResult update(@PathVariable Long projectId, @RequestBody ResearchProject project) {
@@ -64,6 +66,7 @@ public class ResearchProjectController extends BaseController {
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @Log(title = "项目申报", businessType = BusinessType.UPDATE)
     @PostMapping("/projects/{projectId}/submit")
     public AjaxResult submit(@PathVariable Long projectId) {
@@ -95,36 +98,42 @@ public class ResearchProjectController extends BaseController {
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/milestones")
     public AjaxResult addMilestone(@PathVariable Long projectId, @RequestBody ResearchMilestone milestone) {
         researchProjectService.addMilestone(projectId, milestone, getUserId(), canManageAll(), getUsername());
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/milestones/{milestoneId}/complete")
     public AjaxResult completeMilestone(@PathVariable Long projectId, @PathVariable Long milestoneId) {
         researchProjectService.completeMilestone(projectId, milestoneId, getUserId(), canManageAll(), getUsername());
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/progress")
     public AjaxResult addProgress(@PathVariable Long projectId, @RequestBody ResearchProgress progress) {
         researchProjectService.addProgress(projectId, progress, getUserId(), canManageAll(), getUsername());
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/expenses")
     public AjaxResult addExpense(@PathVariable Long projectId, @RequestBody ResearchExpense expense) {
         researchProjectService.addExpense(projectId, expense, getUserId(), canManageAll(), getUsername());
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/deliverables")
     public AjaxResult addDeliverable(@PathVariable Long projectId, @RequestBody ResearchDeliverable deliverable) {
         researchProjectService.addDeliverable(projectId, deliverable, getUserId(), canManageAll(), getUsername());
         return success();
     }
 
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')")
     @PostMapping("/projects/{projectId}/acceptance")
     public AjaxResult submitAcceptance(@PathVariable Long projectId, @RequestBody ResearchAcceptance acceptance) {
         researchProjectService.submitAcceptance(projectId, acceptance, getUserId(), canManageAll(), getUsername());
