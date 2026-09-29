@@ -175,6 +175,11 @@
         <el-form-item label="预期成果">
           <el-input v-model="form.expectedDeliverables" type="textarea" :rows="2" placeholder="论文、专利、软件、技术报告等" />
         </el-form-item>
+
+        <div class="form-section-title">申报材料</div>
+        <el-form-item label="项目附件">
+          <ResearchAttachmentUpload v-model="form.applicationAttachments" />
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -192,6 +197,7 @@
 
 <script setup>
 import { Search } from '@element-plus/icons-vue'
+import ResearchAttachmentUpload from '@/components/ResearchAttachmentUpload/index.vue'
 import { createResearchProject, listResearchProjects, updateResearchProject, generateResearchProposal } from '@/api/research'
 import useUserStore from '@/store/modules/user'
 
@@ -234,7 +240,8 @@ const blankForm = () => ({
   totalBudget: 0,
   researchObjectives: '',
   researchContent: '',
-  expectedDeliverables: ''
+  expectedDeliverables: '',
+  applicationAttachments: ''
 })
 
 const form = reactive(blankForm())
