@@ -50,6 +50,13 @@
               <InfoBlock title="研究内容" :content="project.researchContent" />
               <InfoBlock title="预期成果" :content="project.expectedDeliverables" />
               <div class="section-block">
+                <div class="block-head">
+                  <h3>申报附件</h3>
+                  <span class="attachment-hint">项目申报阶段提交的任务书、预算说明和论证材料</span>
+                </div>
+                <ResearchAttachmentUpload :model-value="project.applicationAttachments || ''" disabled />
+              </div>
+              <div class="section-block">
                 <div class="block-head"><h3>最近进展</h3><el-button v-if="canExecute" text type="primary" @click="progressVisible=true">更新进展</el-button></div>
                 <div v-if="progressRecords.length" class="latest-progress">
                   <div class="progress-date">{{ progressRecords[0].recordDate }}</div>
@@ -132,7 +139,7 @@
     </section>
 
     <el-dialog v-model="editVisible" title="编辑项目申报" width="720px">
-      <el-form :model="editForm" label-position="top"><el-form-item label="项目名称"><el-input v-model="editForm.projectName" /></el-form-item><el-form-item label="项目简介"><el-input v-model="editForm.summary" type="textarea" :rows="2" /></el-form-item><div class="dialog-grid"><el-form-item label="开始日期"><el-date-picker v-model="editForm.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="计划结束日期"><el-date-picker v-model="editForm.plannedEndDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></div><el-form-item label="项目预算"><el-input-number v-model="editForm.totalBudget" :min="0" style="width:100%" /></el-form-item><el-form-item label="研究目标"><el-input v-model="editForm.researchObjectives" type="textarea" :rows="3" /></el-form-item><el-form-item label="研究内容"><el-input v-model="editForm.researchContent" type="textarea" :rows="3" /></el-form-item><el-form-item label="预期成果"><el-input v-model="editForm.expectedDeliverables" type="textarea" :rows="2" /></el-form-item></el-form>
+      <el-form :model="editForm" label-position="top"><el-form-item label="项目名称"><el-input v-model="editForm.projectName" /></el-form-item><el-form-item label="项目简介"><el-input v-model="editForm.summary" type="textarea" :rows="2" /></el-form-item><div class="dialog-grid"><el-form-item label="开始日期"><el-date-picker v-model="editForm.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="计划结束日期"><el-date-picker v-model="editForm.plannedEndDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></div><el-form-item label="项目预算"><el-input-number v-model="editForm.totalBudget" :min="0" style="width:100%" /></el-form-item><el-form-item label="研究目标"><el-input v-model="editForm.researchObjectives" type="textarea" :rows="3" /></el-form-item><el-form-item label="研究内容"><el-input v-model="editForm.researchContent" type="textarea" :rows="3" /></el-form-item><el-form-item label="预期成果"><el-input v-model="editForm.expectedDeliverables" type="textarea" :rows="2" /></el-form-item><el-form-item label="申报附件"><ResearchAttachmentUpload v-model="editForm.applicationAttachments" /></el-form-item></el-form>
       <template #footer><el-button @click="editVisible=false">取消</el-button><el-button type="primary" @click="saveEdit">保存</el-button></template>
     </el-dialog>
 
@@ -150,6 +157,7 @@
 
 <script setup>
 import { h } from 'vue'
+import ResearchAttachmentUpload from '@/components/ResearchAttachmentUpload/index.vue'
 import useUserStore from '@/store/modules/user'
 import { getResearchProject, updateResearchProject, submitResearchProject, approveResearchProject, rejectResearchProject, startResearchProject as startProjectApi, addResearchMilestone, completeResearchMilestone, addResearchProgress, addResearchExpense, addResearchDeliverable, submitResearchAcceptance, approveResearchAcceptance, rejectResearchAcceptance } from '@/api/research'
 
@@ -353,6 +361,7 @@ onMounted(()=>{load();progressForm.progressPercent=0})
   overflow-wrap: anywhere;
 }
 .block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.attachment-hint { color: var(--rf-text-muted); font-size: 11px; line-height: 1.5; text-align: right; }
 
 .latest-progress { margin-top: 12px; padding: 14px; border-radius: 10px; background: var(--rf-surface-subtle); }
 .progress-date { margin-bottom: 5px; color: var(--rf-text-muted); font-size: 12px; }

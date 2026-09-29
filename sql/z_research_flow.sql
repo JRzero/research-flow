@@ -24,6 +24,7 @@ CREATE TABLE research_project (
   progress int NOT NULL DEFAULT 0 COMMENT '项目进度0-100',
   status varchar(32) NOT NULL DEFAULT 'DRAFT' COMMENT '项目状态',
   expected_deliverables text COMMENT '预期成果',
+  application_attachments longtext COMMENT '申报附件JSON',
   create_by varchar(64) DEFAULT '',
   create_time datetime DEFAULT NULL,
   update_by varchar(64) DEFAULT '',

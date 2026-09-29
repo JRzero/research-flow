@@ -16,6 +16,7 @@
         <result property="progress" column="progress"/>
         <result property="status" column="status"/>
         <result property="expectedDeliverables" column="expected_deliverables"/>
+        <result property="applicationAttachments" column="application_attachments"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
         <result property="updateBy" column="update_by"/>
@@ -29,7 +30,7 @@
     <sql id="projectColumns">
         p.project_id, p.project_no, p.project_name, p.owner_user_id, p.dept_id, p.summary,
         p.research_objectives, p.research_content, p.start_date, p.planned_end_date,
-        p.total_budget, p.progress, p.status, p.expected_deliverables,
+        p.total_budget, p.progress, p.status, p.expected_deliverables, p.application_attachments,
         p.create_by, p.create_time, p.update_by, p.update_time, p.remark,
         u.nick_name owner_name, d.dept_name,
         coalesce((select sum(e.amount) from research_expense e where e.project_id = p.project_id), 0) used_budget
@@ -62,11 +63,11 @@
     <insert id="insertProject" parameterType="ResearchProject" useGeneratedKeys="true" keyProperty="projectId">
         insert into research_project(
             project_no, project_name, owner_user_id, dept_id, summary, research_objectives, research_content,
-            start_date, planned_end_date, total_budget, progress, status, expected_deliverables,
+            start_date, planned_end_date, total_budget, progress, status, expected_deliverables, application_attachments,
             create_by, create_time, update_by, update_time, remark
         ) values (
             #{projectNo}, #{projectName}, #{ownerUserId}, #{deptId}, #{summary}, #{researchObjectives}, #{researchContent},
-            #{startDate}, #{plannedEndDate}, #{totalBudget}, #{progress}, #{status}, #{expectedDeliverables},
+            #{startDate}, #{plannedEndDate}, #{totalBudget}, #{progress}, #{status}, #{expectedDeliverables}, #{applicationAttachments},
             #{createBy}, sysdate(), #{updateBy}, sysdate(), #{remark}
         )
     </insert>
@@ -83,6 +84,7 @@
             <if test="plannedEndDate != null">planned_end_date = #{plannedEndDate},</if>
             <if test="totalBudget != null">total_budget = #{totalBudget},</if>
             <if test="expectedDeliverables != null">expected_deliverables = #{expectedDeliverables},</if>
+            <if test="applicationAttachments != null">application_attachments = #{applicationAttachments},</if>
             <if test="remark != null">remark = #{remark},</if>
             update_by = #{updateBy}, update_time = sysdate()
         </set>

@@ -23,6 +23,7 @@ public class ResearchProject extends BaseEntity {
     private Integer progress;
     private String status;
     private String expectedDeliverables;
+    private String applicationAttachments;
     private String ownerName;
     private String deptName;
     private BigDecimal usedBudget;
@@ -58,6 +59,8 @@ public class ResearchProject extends BaseEntity {
     public void setStatus(String status) { this.status = status; }
     public String getExpectedDeliverables() { return expectedDeliverables; }
     public void setExpectedDeliverables(String expectedDeliverables) { this.expectedDeliverables = expectedDeliverables; }
+    public String getApplicationAttachments() { return applicationAttachments; }
+    public void setApplicationAttachments(String applicationAttachments) { this.applicationAttachments = applicationAttachments; }
     public String getOwnerName() { return ownerName; }
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
     public String getDeptName() { return deptName; }
