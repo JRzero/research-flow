@@ -16,13 +16,13 @@ ResearchRecord
 
 ## 核心设计
 
-- **Proposal / Award / Project 分离**：申请值、批准值、正式项目状态互不覆盖。
+- **Proposal / Award / Project 分离**：申请值、批准值、正式项目状态互不覆盖；审批中心可显式调整批准周期、预算、范围、目标和成果。
 - **Immutable Baseline**：项目激活生成 V1；批准变更应用后生成新版本。
-- **统一 WBS WorkItem**：Phase / Work Package / Task / Milestone 共用树形模型。
+- **统一 WBS WorkItem**：Phase / Work Package / Task / Milestone 共用树形模型，支持父子层级、负责人和权重。
 - **Risk != Issue**：风险是尚未发生的不确定事件，问题是已经发生的事实。
 - **Change Control**：批准和应用分离；应用变更后自动生成新 Baseline。
 - **Expected Output vs Outcome**：计划成果与实际成果分别记录。
-- **Acceptance != Closeout**：验收通过后还需要完成结项归档。
+- **Acceptance != Closeout**：验收支持退回重提；验收通过后还需要完成确定性结项检查和归档。
 - **Document 元数据模型**：Demo 使用本地文件存储，业务层不依赖 MinIO。
 - **AI Copilot**：AI 负责辅助整理、总结和解释，不直接改变权限、金额、审批和核心状态。
 
@@ -138,6 +138,17 @@ Vue/Nginx Frontend
 | `research_admin` | 科研管理员 | 评审、立项、变更审批、验收与结项 |
 | `research_manager` | 管理者 | 全局只读、项目组合与治理分析 |
 | `admin` | 超级管理员 | Admin Console 与完整演示 |
+
+## 权限模型
+
+ResearchFlow V2 使用 **RuoYi RBAC + Project Membership**：
+
+- `research_admin`：跨项目评审、变更审批、验收和结项。
+- `research_manager`：全局只读与组合分析。
+- PI / PROJECT_MANAGER：维护正式项目计划、团队、变更和验收申请。
+- 项目成员：提交进展、风险、问题、Decision、成果和资料。
+- FINANCE_CONTACT：可记录项目支出。
+- WorkItem owner：可更新自己负责的工作项。
 
 ## 可选 AI
 
