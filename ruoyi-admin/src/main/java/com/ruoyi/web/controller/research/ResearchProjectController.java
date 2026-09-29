@@ -226,6 +226,7 @@ public class ResearchProjectController extends BaseController {
         return SecurityUtils.isAdmin() || SecurityUtils.hasRole("research_admin");
     }
     private String comment(Map<String,?> input) {
-        return input==null?"":String.valueOf(input.getOrDefault("comment",""));
+        if (input == null || input.get("comment") == null) return "";
+        return String.valueOf(input.get("comment"));
     }
 }

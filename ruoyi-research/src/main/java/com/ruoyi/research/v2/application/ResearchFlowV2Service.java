@@ -451,9 +451,7 @@ public class ResearchFlowV2Service {
         mapper.supersedeBaselines(projectId);
         Long baselineId = createBaseline(projectId, "CHANGE_REQUEST", changeId, userId);
         Map<String, Object> fresh = requiredProject(projectId);
-        mapper.activateProject(projectId, baselineId, username); // no-op for ACTIVE; pointer set below through direct plan update is handled next line
-        // ACTIVE projects require explicit pointer update; use plan update path plus a targeted mapper update via activation is not applicable.
-        updateCurrentBaseline(projectId, baselineId, username);
+        mapper.updateCurrentBaseline(projectId, baselineId, username);
         mapper.updateChangeStatus(changeId, "APPLIED", username);
     }
 
@@ -624,13 +622,6 @@ public class ResearchFlowV2Service {
         baseline.put("createdByUserId", userId);
         mapper.insertBaseline(baseline);
         return longValue(baseline.get("baselineId"));
-    }
-
-    private void updateCurrentBaseline(Long projectId, Long baselineId, String username) {
-        // Reuse the project mapper through a tiny generated change item: mapper XML keeps V2 writes centralized.
-        // The project is already ACTIVE, so activation update cannot be used. A dedicated current-baseline update
-        // is represented by an internal change to current_baseline_id in the next mapper revision.
-        // Until then, baseline history is authoritative; project detail selects the newest baseline when pointer is stale.
     }
 
     private Map<String, Object> health(Long projectId, Map<String, Object> project) {

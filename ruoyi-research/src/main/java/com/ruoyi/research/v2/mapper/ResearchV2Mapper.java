@@ -69,6 +69,8 @@ public interface ResearchV2Mapper {
     int supersedeBaselines(Long projectId);
     int activateProject(@Param("projectId") Long projectId, @Param("baselineId") Long baselineId,
             @Param("username") String username);
+    int updateCurrentBaseline(@Param("projectId") Long projectId, @Param("baselineId") Long baselineId,
+            @Param("username") String username);
     int insertProgressReport(Map<String, Object> row);
     int insertRisk(Map<String, Object> row);
     Map<String, Object> selectRiskById(Long riskId);

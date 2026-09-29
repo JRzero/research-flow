@@ -347,6 +347,10 @@
     update research_project set current_baseline_id=#{baselineId},status='ACTIVE',activated_at=sysdate(),
       version=version+1,update_by=#{username} where project_id=#{projectId} and status='PLANNING'
   </update>
+  <update id="updateCurrentBaseline">
+    update research_project set current_baseline_id=#{baselineId},version=version+1,update_by=#{username}
+    where project_id=#{projectId}
+  </update>
 
   <insert id="insertProgressReport" parameterType="map" useGeneratedKeys="true" keyProperty="reportId">
     insert into research_progress_report(project_id,report_no,report_type,period_start,period_end,overall_progress,
