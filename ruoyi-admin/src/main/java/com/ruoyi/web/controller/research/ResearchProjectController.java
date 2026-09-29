@@ -19,6 +19,7 @@ public class ResearchProjectController extends BaseController {
     @Autowired private ResearchFlowService service;
     @Autowired private ResearchAiService researchAiService;
 
+    @GetMapping("/users") public AjaxResult users(@RequestParam(required=false)String keyword){return success(service.listAssignableUsers(keyword));}
     @GetMapping("/dashboard") public AjaxResult dashboard(){return success(service.dashboard(getUserId(),canViewAll()));}
     @GetMapping("/analytics") public AjaxResult analytics(){return success(service.analytics(getUserId(),canViewAll()));}
 
