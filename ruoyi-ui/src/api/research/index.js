@@ -31,6 +31,7 @@ export const addRisk = (id, data) => request({ url: `/research/projects/${id}/ri
 export const setRiskStatus = (id, riskId, status) => request({ url: `/research/projects/${id}/risks/${riskId}/status/${status}`, method: 'post' })
 export const convertRiskToIssue = (id, riskId, data = {}) => request({ url: `/research/projects/${id}/risks/${riskId}/occur`, method: 'post', data })
 export const addIssue = (id, data) => request({ url: `/research/projects/${id}/issues`, method: 'post', data })
+export const addDecision = (id, data) => request({ url: `/research/projects/${id}/decisions`, method: 'post', data })
 export const setIssueStatus = (id, issueId, status, data = {}) => request({ url: `/research/projects/${id}/issues/${issueId}/status/${status}`, method: 'post', data })
 export const getGovernance = () => request({ url: '/research/governance', method: 'get' })
 
