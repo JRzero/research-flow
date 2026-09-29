@@ -1,364 +1,53 @@
 <template>
-  <div v-loading="loading" class="dashboard-page">
-    <section class="welcome-panel" aria-labelledby="dashboard-welcome">
-      <div class="welcome-copy">
-        <span class="eyebrow">RESEARCH OPERATIONS</span>
-        <h1 id="dashboard-welcome">{{ greeting }}，{{ userStore.nickName || userStore.name }}</h1>
-        <p>先处理需要推进的事项，再进入项目细节。</p>
-      </div>
-      <div class="welcome-actions">
-        <button class="priority-chip" type="button" @click="router.push('/research/approvals')">
-          <span>待处理</span>
-          <strong class="rf-tabular">{{ (data.pendingApproval || 0) + (data.pendingAcceptance || 0) }}</strong>
-        </button>
-        <button class="priority-chip danger" type="button" @click="router.push('/research/risks')">
-          <span>风险项目</span>
-          <strong class="rf-tabular">{{ data.riskCount || 0 }}</strong>
-        </button>
-        <el-button type="primary" @click="router.push('/research/projects')">
-          查看全部项目
-          <el-icon class="el-icon--right" aria-hidden="true"><ArrowRight /></el-icon>
-        </el-button>
-      </div>
+  <div class="dashboard" v-loading="loading">
+    <section class="metrics">
+      <button class="metric" @click="router.push('/research/projects')"><span>正式项目</span><strong>{{ data.totalProjects||0 }}</strong><small>执行中 {{ data.activeProjects||0 }}</small></button>
+      <button class="metric" @click="router.push('/research/proposals')"><span>待评审申请</span><strong>{{ data.pendingProposals||0 }}</strong><small>草稿 {{ data.draftProposals||0 }}</small></button>
+      <button class="metric risk" @click="router.push('/research/risks')"><span>开放风险</span><strong>{{ data.openRisks||0 }}</strong><small>问题 {{ data.openIssues||0 }}</small></button>
+      <div class="metric"><span>预算执行</span><strong>{{ data.budgetExecutionRate||0 }}%</strong><small>¥{{ compact(data.usedBudget) }} / ¥{{ compact(data.totalBudget) }}</small></div>
     </section>
 
-    <section class="metric-grid" aria-label="科研项目核心指标">
-      <article v-for="item in metrics" :key="item.label" class="metric-card">
-        <div class="metric-head">
-          <span>{{ item.label }}</span>
-          <div class="metric-icon" :class="item.tone" aria-hidden="true">
-            <el-icon><component :is="item.icon" /></el-icon>
-          </div>
-        </div>
-        <div class="metric-value rf-tabular">{{ item.value }}</div>
-        <div class="metric-note">{{ item.note }}</div>
-      </article>
-    </section>
-
-    <section class="content-grid">
-      <div class="panel projects-panel">
-        <div class="panel-head">
-          <div>
-            <h2>最近项目</h2>
-            <p>按最近更新时间排序，进入项目工作空间继续推进。</p>
-          </div>
-          <el-button text type="primary" @click="router.push('/research/projects')">全部项目</el-button>
-        </div>
-
-        <div v-if="data.recentProjects?.length" class="project-list">
-          <button
-            v-for="project in data.recentProjects"
-            :key="project.projectId"
-            class="project-row"
-            type="button"
-            @click="openProject(project.projectId)"
-          >
-            <div class="project-main">
-              <div class="project-title-line">
-                <strong>{{ project.projectName }}</strong>
-                <span class="status-pill" :class="statusClass(project.status)">
-                  <i aria-hidden="true"></i>{{ statusText(project.status) }}
-                </span>
-              </div>
-              <div class="project-meta">
-                <span>{{ project.projectNo }}</span>
-                <span>{{ project.ownerName || '未指定负责人' }}</span>
-                <span>{{ project.deptName || '未指定部门' }}</span>
-              </div>
-            </div>
-            <div class="project-progress">
-              <div class="progress-label">
-                <span>项目进度</span>
-                <strong class="rf-tabular">{{ project.progress || 0 }}%</strong>
-              </div>
-              <el-progress :percentage="project.progress || 0" :stroke-width="7" :show-text="false" />
-            </div>
-            <el-icon class="row-arrow" aria-hidden="true"><ArrowRight /></el-icon>
+    <section class="grid">
+      <div class="panel projects">
+        <div class="panel-head"><div><strong>最近项目</strong><span>优先显示正在执行的科研项目</span></div><el-button text type="primary" @click="router.push('/research/projects')">全部</el-button></div>
+        <div class="rows">
+          <button v-for="p in data.recentProjects||[]" :key="p.projectId" class="row" @click="router.push('/research/projects/'+p.projectId)">
+            <div class="main"><strong>{{ p.projectName }}</strong><span>{{ p.projectNo }} · {{ p.piName }}</span></div>
+            <span :class="['badge',tone(p.status)]">{{ statusText(p.status) }}</span>
+            <div class="prog"><el-progress :percentage="p.progress||0" :show-text="false" :stroke-width="5"/><b>{{ p.progress||0 }}%</b></div>
+            <span class="money">¥{{ compact(p.currentBudget) }}</span><el-icon><ArrowRight/></el-icon>
           </button>
+          <el-empty v-if="!data.recentProjects?.length" description="暂无正式项目" :image-size="54"/>
         </div>
-        <el-empty v-else description="暂无项目" :image-size="76" />
       </div>
-
-      <div class="panel risk-panel">
-        <div class="panel-head">
-          <div>
-            <h2>需要关注</h2>
-            <p>风险来自时间、进度与预算的确定性规则。</p>
-          </div>
-          <el-button text type="danger" @click="router.push('/research/risks')">查看全部</el-button>
-        </div>
-
-        <div v-if="data.riskProjects?.length" class="risk-list">
-          <button
-            v-for="project in data.riskProjects"
-            :key="project.projectId"
-            class="risk-item"
-            type="button"
-            @click="openProject(project.projectId)"
-          >
-            <div class="risk-icon" aria-hidden="true"><el-icon><WarningFilled /></el-icon></div>
-            <div class="risk-content">
-              <div class="risk-title">
-                <strong>{{ project.projectName }}</strong>
-                <span :class="['risk-level', project.riskLevel?.toLowerCase()]">
-                  {{ project.riskLevel === 'HIGH' ? '高风险' : '需关注' }}
-                </span>
-              </div>
-              <p>{{ project.riskReason }}</p>
-            </div>
-            <el-icon class="risk-arrow" aria-hidden="true"><ArrowRight /></el-icon>
+      <div class="panel">
+        <div class="panel-head"><div><strong>高优先级风险</strong><span>HIGH / CRITICAL</span></div><el-button text type="danger" @click="router.push('/research/risks')">全部</el-button></div>
+        <div class="risk-list">
+          <button v-for="r in data.priorityRisks||[]" :key="r.riskId" @click="router.push('/research/projects/'+r.projectId)">
+            <span :class="['level',r.riskLevel?.toLowerCase()]">{{ r.riskLevel }}</span><div><strong>{{ r.title }}</strong><p>{{ r.projectName }}</p></div><el-icon><ArrowRight/></el-icon>
           </button>
-        </div>
-
-        <div v-else class="healthy-state">
-          <div class="healthy-icon" aria-hidden="true"><el-icon><CircleCheckFilled /></el-icon></div>
-          <strong>当前没有明显风险</strong>
-          <p>项目时间、进度与预算执行处于合理区间。</p>
+          <div v-if="!data.priorityRisks?.length" class="healthy"><el-icon><CircleCheckFilled/></el-icon><span>当前没有高优先级风险</span></div>
         </div>
       </div>
     </section>
 
-    <section class="panel budget-panel">
-      <div class="panel-head budget-head">
-        <div>
-          <h2>经费执行</h2>
-          <p>项目维度预算跟踪，不替代财务系统。</p>
-        </div>
-        <div class="budget-total rf-tabular">
-          ¥{{ money(data.usedBudget) }}
-          <span>/ ¥{{ money(data.totalBudget) }}</span>
-        </div>
-      </div>
-      <div class="budget-progress">
-        <el-progress :percentage="data.budgetExecutionRate || 0" :stroke-width="12" />
-      </div>
-      <div class="budget-foot">
-        <span>整体预算执行率 <strong class="rf-tabular">{{ data.budgetExecutionRate || 0 }}%</strong></span>
-        <span>项目平均完成度 <strong class="rf-tabular">{{ data.averageProgress || 0 }}%</strong></span>
-      </div>
+    <section class="panel summary">
+      <div><span>项目平均完成度</span><strong>{{ data.averageProgress||0 }}%</strong></div>
+      <el-progress :percentage="data.averageProgress||0" :show-text="false" :stroke-width="7"/>
+      <div class="summary-note">项目计划、预算、风险和问题采用结构化事实记录，AI 仅用于辅助解释与总结。</div>
     </section>
   </div>
 </template>
-
 <script setup>
 import { getResearchDashboard } from '@/api/research'
-import useUserStore from '@/store/modules/user'
-
-const router = useRouter()
-const userStore = useUserStore()
-const loading = ref(false)
-const data = reactive({})
-
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  return hour < 12 ? '上午好' : hour < 18 ? '下午好' : '晚上好'
-})
-
-const metrics = computed(() => [
-  { label: '项目总数', value: data.totalProjects || 0, note: '当前可见科研项目', icon: 'FolderOpened', tone: 'blue' },
-  { label: '执行中', value: data.inProgress || 0, note: '正在推进的项目', icon: 'VideoPlay', tone: 'green' },
-  { label: '待处理', value: (data.pendingApproval || 0) + (data.pendingAcceptance || 0), note: '审批 ' + (data.pendingApproval || 0) + ' · 验收 ' + (data.pendingAcceptance || 0), icon: 'Bell', tone: 'orange' },
-  { label: '风险项目', value: data.riskCount || 0, note: '需要优先关注', icon: 'Warning', tone: 'red' }
-])
-
-async function load() {
-  loading.value = true
-  try {
-    const res = await getResearchDashboard()
-    Object.assign(data, res.data || {})
-  } finally {
-    loading.value = false
-  }
-}
-
-function openProject(id) { router.push('/research/projects/' + id) }
-function money(v) { return Number(v || 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 }) }
-function statusText(status) {
-  return ({
-    DRAFT: '草稿',
-    PENDING_APPROVAL: '待审批',
-    APPROVED: '已立项',
-    IN_PROGRESS: '执行中',
-    PENDING_ACCEPTANCE: '待验收',
-    COMPLETED: '已结项',
-    REJECTED: '已驳回',
-    TERMINATED: '已终止'
-  })[status] || status
-}
-function statusClass(status) { return status?.toLowerCase().replaceAll('_', '-') || '' }
-
+const router=useRouter(),loading=ref(false),data=reactive({})
+async function load(){loading.value=true;try{const r=await getResearchDashboard();Object.assign(data,r.data||{})}finally{loading.value=false}}
+function compact(v){const n=Number(v||0);return n>=10000?(n/10000).toFixed(n%10000===0?0:1)+'万':n.toLocaleString()}
+function statusText(s){return ({PLANNING:'计划中',ACTIVE:'执行中',SUSPENDED:'暂停',CLOSING:'结项中',CLOSED:'已结项'})[s]||s}
+function tone(s){return s==='ACTIVE'?'success':s==='PLANNING'||s==='CLOSING'?'warning':'neutral'}
 onMounted(load)
 </script>
-
 <style scoped lang="scss">
-.dashboard-page { display: flex; flex-direction: column; gap: 20px; }
-
-.welcome-panel {
-  min-height: 128px;
-  padding: 24px 26px;
-  border: 1px solid var(--rf-border);
-  border-radius: var(--rf-radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  background: linear-gradient(120deg, rgba(37, 99, 235, .08), transparent 45%), var(--rf-surface);
-  box-shadow: var(--rf-shadow-sm);
-}
-.eyebrow { color: var(--rf-primary); font-size: 12px; font-weight: 750; letter-spacing: 1.5px; }
-h1 { margin: 8px 0 6px; color: var(--rf-text); font-size: clamp(24px, 2.2vw, 30px); line-height: 1.2; letter-spacing: -.6px; }
-.welcome-copy p { margin: 0; color: var(--rf-text-muted); font-size: 14px; line-height: 1.6; }
-.welcome-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.priority-chip {
-  min-width: 94px;
-  min-height: 44px;
-  padding: 7px 12px;
-  border: 1px solid var(--rf-border);
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--rf-surface-subtle);
-  color: var(--rf-text-secondary);
-  cursor: pointer;
-  transition: border-color var(--rf-motion-fast) ease, background var(--rf-motion-fast) ease;
-}
-.priority-chip:hover { border-color: var(--rf-primary-border); background: var(--rf-primary-soft); }
-.priority-chip span { font-size: 12px; }
-.priority-chip strong { color: var(--rf-primary); font-size: 17px; }
-.priority-chip.danger strong { color: var(--rf-danger); }
-
-.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.metric-card, .panel { border: 1px solid var(--rf-border); border-radius: var(--rf-radius-lg); background: var(--rf-surface); box-shadow: var(--rf-shadow-sm); }
-.metric-card { padding: 18px; }
-.metric-head { display: flex; justify-content: space-between; align-items: center; color: var(--rf-text-muted); font-size: 13px; font-weight: 550; }
-.metric-icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; font-size: 18px; }
-.metric-icon.blue { background: var(--rf-primary-soft); color: var(--rf-primary); }
-.metric-icon.green { background: var(--rf-success-soft); color: var(--rf-success); }
-.metric-icon.orange { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.metric-icon.red { background: var(--rf-danger-soft); color: var(--rf-danger); }
-.metric-value { margin-top: 10px; color: var(--rf-text); font-size: 30px; font-weight: 760; letter-spacing: -1px; }
-.metric-note { margin-top: 4px; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-
-.content-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(330px, .82fr); gap: 16px; }
-.panel { padding: 20px; }
-.panel-head { margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.panel-head h2 { margin: 0; color: var(--rf-text); font-size: 16px; font-weight: 700; }
-.panel-head p { margin: 5px 0 0; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-
-.project-list { display: flex; flex-direction: column; }
-.project-row {
-  width: 100%;
-  min-height: 78px;
-  padding: 15px 4px;
-  border: 0;
-  border-top: 1px solid var(--rf-border);
-  background: transparent;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px 26px;
-  gap: 18px;
-  align-items: center;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  transition: background var(--rf-motion-fast) ease;
-}
-.project-row:first-child { border-top: 0; }
-.project-row:hover { background: var(--rf-surface-subtle); }
-.project-row:focus-visible { border-radius: 10px; box-shadow: var(--rf-focus); }
-.project-main { min-width: 0; }
-.project-title-line { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.project-title-line strong { min-width: 0; overflow: hidden; color: var(--rf-text); font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-.project-meta { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--rf-text-muted); font-size: 12px; }
-.project-meta span + span::before { content: "·"; margin-right: 14px; color: var(--rf-border-strong); }
-.project-progress { min-width: 0; }
-.progress-label { margin-bottom: 7px; display: flex; justify-content: space-between; color: var(--rf-text-muted); font-size: 12px; }
-.progress-label strong { color: var(--rf-text-secondary); }
-.row-arrow { color: var(--rf-text-muted); font-size: 17px; }
-
-.status-pill {
-  flex: 0 0 auto;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--rf-surface-subtle);
-  color: var(--rf-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-.status-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--rf-text-muted); }
-.status-pill.in-progress { background: var(--rf-primary-soft); color: var(--rf-primary-hover); }
-.status-pill.in-progress i { background: var(--rf-primary); }
-.status-pill.pending-approval, .status-pill.pending-acceptance { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.status-pill.pending-approval i, .status-pill.pending-acceptance i { background: var(--rf-warning); }
-.status-pill.completed { background: var(--rf-success-soft); color: var(--rf-success); }
-.status-pill.completed i { background: var(--rf-success); }
-.status-pill.rejected, .status-pill.terminated { background: var(--rf-danger-soft); color: var(--rf-danger); }
-.status-pill.rejected i, .status-pill.terminated i { background: var(--rf-danger); }
-
-.risk-list { display: flex; flex-direction: column; gap: 8px; }
-.risk-item {
-  width: 100%;
-  min-height: 76px;
-  padding: 13px;
-  border: 1px solid color-mix(in srgb, var(--rf-danger) 20%, var(--rf-border));
-  border-radius: 12px;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 22px;
-  gap: 11px;
-  align-items: center;
-  background: var(--rf-danger-soft);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color var(--rf-motion-fast) ease, transform var(--rf-motion-fast) ease;
-}
-.risk-item:hover { border-color: color-mix(in srgb, var(--rf-danger) 42%, var(--rf-border)); transform: translateY(-1px); }
-.risk-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in srgb, var(--rf-danger) 12%, transparent); color: var(--rf-danger); font-size: 18px; }
-.risk-content { min-width: 0; }
-.risk-title { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-.risk-title strong { min-width: 0; overflow: hidden; color: var(--rf-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.risk-level { flex: 0 0 auto; font-size: 12px; font-weight: 650; color: var(--rf-danger); }
-.risk-level:not(.high) { color: var(--rf-warning); }
-.risk-content p { margin: 5px 0 0; color: var(--rf-text-secondary); font-size: 12px; line-height: 1.5; }
-.risk-arrow { color: var(--rf-text-muted); }
-
-.healthy-state { padding: 26px 12px; text-align: center; }
-.healthy-icon { color: var(--rf-success); font-size: 34px; }
-.healthy-state strong { display: block; margin-top: 8px; color: var(--rf-text); font-size: 14px; }
-.healthy-state p { margin: 6px auto 0; max-width: 320px; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-
-.budget-head { align-items: center; }
-.budget-total { color: var(--rf-text); font-size: 20px; font-weight: 720; }
-.budget-total span { color: var(--rf-text-muted); font-size: 12px; font-weight: 450; }
-.budget-foot { margin-top: 10px; display: flex; justify-content: space-between; gap: 12px; color: var(--rf-text-muted); font-size: 12px; }
-.budget-foot strong { color: var(--rf-text-secondary); }
-
-@media (max-width: 1100px) {
-  .metric-grid { grid-template-columns: repeat(2, 1fr); }
-  .content-grid { grid-template-columns: 1fr; }
-  .welcome-panel { align-items: flex-start; flex-direction: column; }
-  .welcome-actions { width: 100%; justify-content: flex-start; }
-}
-@media (max-width: 700px) {
-  .dashboard-page { gap: 14px; }
-  .welcome-panel { min-height: 0; padding: 18px; }
-  .welcome-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-  .welcome-actions > .el-button { grid-column: 1 / -1; width: 100%; }
-  .priority-chip { width: 100%; }
-  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .metric-card { padding: 14px; }
-  .metric-value { font-size: 25px; }
-  .panel { padding: 16px; }
-  .project-row { grid-template-columns: minmax(0, 1fr) 24px; gap: 10px; }
-  .project-progress { display: none; }
-  .project-title-line { align-items: flex-start; flex-direction: column; }
-  .project-meta span + span::before { display: none; }
-  .budget-head { align-items: flex-start; flex-direction: column; }
-  .budget-foot { flex-direction: column; gap: 5px; }
-}
+.dashboard{display:flex;flex-direction:column;gap:12px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{min-height:92px;padding:12px 14px;border:1px solid var(--rf-border);border-radius:10px;background:var(--rf-surface);text-align:left;color:inherit;display:flex;flex-direction:column;cursor:pointer}.metric span{color:var(--rf-text-muted);font-size:11px}.metric strong{margin:5px 0 2px;font-size:24px;line-height:1}.metric small{color:var(--rf-text-secondary);font-size:11px}.metric.risk strong{color:var(--rf-danger)}.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(300px,.75fr);gap:10px}.panel{border:1px solid var(--rf-border);border-radius:10px;background:var(--rf-surface);overflow:hidden}.panel-head{min-height:48px;padding:8px 12px;border-bottom:1px solid var(--rf-border);display:flex;align-items:center;justify-content:space-between}.panel-head>div{display:flex;flex-direction:column;gap:2px}.panel-head strong{font-size:13px}.panel-head span{font-size:10px;color:var(--rf-text-muted)}.row{width:100%;min-height:52px;padding:7px 11px;border:0;border-top:1px solid var(--rf-border);background:none;color:inherit;display:grid;grid-template-columns:minmax(200px,1fr) 70px 130px 90px 18px;gap:10px;align-items:center;text-align:left;cursor:pointer}.row:first-child{border-top:0}.row:hover{background:var(--rf-surface-subtle)}.main{min-width:0}.main strong,.main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.main strong{font-size:12px}.main span{margin-top:3px;color:var(--rf-text-muted);font-size:10px}.badge,.level{justify-self:start;padding:3px 6px;border-radius:999px;font-size:10px;background:var(--rf-surface-subtle)}.badge.success{background:var(--rf-success-soft);color:var(--rf-success)}.badge.warning{background:var(--rf-warning-soft);color:var(--rf-warning)}.prog{display:grid;grid-template-columns:1fr 28px;gap:5px;align-items:center}.prog b,.money{font-size:10px}.risk-list button{width:100%;min-height:54px;padding:8px 11px;border:0;border-top:1px solid var(--rf-border);background:none;color:inherit;display:grid;grid-template-columns:auto 1fr 16px;gap:8px;align-items:center;text-align:left;cursor:pointer}.risk-list button:first-child{border-top:0}.risk-list strong{font-size:11px}.risk-list p{margin:3px 0 0;color:var(--rf-text-muted);font-size:10px}.level.high{background:var(--rf-danger-soft);color:var(--rf-danger)}.level.critical{background:var(--rf-danger);color:#fff}.healthy{min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;color:var(--rf-success);font-size:12px}.healthy .el-icon{font-size:28px}.summary{padding:12px;display:grid;grid-template-columns:150px minmax(180px,380px) 1fr;gap:14px;align-items:center}.summary>div:first-child{display:flex;justify-content:space-between;font-size:11px}.summary-note{color:var(--rf-text-muted);font-size:10px;text-align:right}
+@media(max-width:950px){.metrics{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.summary{grid-template-columns:1fr}}@media(max-width:520px){.metrics{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr auto}.row>.prog,.row>.money{display:none}}
 </style>
