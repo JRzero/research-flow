@@ -21,6 +21,7 @@ public interface ResearchFlowMapper {
     int deleteProposalBudget(Long proposalId);
     int insertProposalBudgetLine(Map<String,Object> data);
     List<Map<String,Object>> selectProposalBudget(Long proposalId);
+    BigDecimal sumProposalBudget(Long proposalId);
     int insertExpectedOutput(Map<String,Object> data);
     List<Map<String,Object>> selectExpectedOutputs(Long proposalId);
 
@@ -43,12 +44,14 @@ public interface ResearchFlowMapper {
     int copyProposalMembersToProject(@Param("proposalId") Long proposalId,@Param("projectId") Long projectId,@Param("username") String username);
     List<Map<String,Object>> selectProjectMembers(Long projectId);
     int isProjectMember(@Param("projectId") Long projectId,@Param("userId") Long userId);
+    String selectProjectMemberRole(@Param("projectId") Long projectId,@Param("userId") Long userId);
 
     int insertWorkItem(Map<String,Object> data);
     Map<String,Object> selectWorkItem(Long workItemId);
     List<Map<String,Object>> selectWorkItems(Long projectId);
     int updateWorkItemAction(@Param("workItemId") Long workItemId,@Param("status") String status,@Param("progress") Integer progress,@Param("username") String username);
     int countWorkItems(Long projectId);
+    int countIncompleteWorkItems(Long projectId);
 
     int insertProgressReport(Map<String,Object> data);
     List<Map<String,Object>> selectProgressReports(Long projectId);
@@ -85,15 +88,19 @@ public interface ResearchFlowMapper {
     int updateBudgetBaseline(@Param("budgetId") Long budgetId,@Param("baselineId") Long baselineId);
     Map<String,Object> selectCurrentBudget(Long projectId);
     List<Map<String,Object>> selectBudgetLines(Long budgetId);
+    Map<String,Object> selectBudgetLine(Long budgetLineId);
     int insertExpense(Map<String,Object> data);
     List<Map<String,Object>> selectExpenses(Long projectId);
     BigDecimal sumExpenses(Long projectId);
+    BigDecimal sumExpensesByBudgetLine(Long budgetLineId);
 
     int insertOutcome(Map<String,Object> data);
     List<Map<String,Object>> selectOutcomes(Long projectId);
+    int countOutcomeGaps(Long projectId);
 
     int insertDocument(Map<String,Object> data);
     List<Map<String,Object>> selectDocuments(@Param("businessType") String businessType,@Param("businessId") Long businessId);
+    int countProjectDocuments(Long projectId);
 
     int nextBaselineVersion(Long projectId);
     int insertBaseline(Map<String,Object> data);
@@ -102,6 +109,7 @@ public interface ResearchFlowMapper {
     int insertAcceptance(Map<String,Object> data);
     Map<String,Object> selectAcceptance(Long projectId);
     int updateAcceptance(@Param("projectId") Long projectId,@Param("status") String status,@Param("comment") String comment);
+    int resubmitAcceptance(Map<String,Object> data);
 
     int insertCloseout(Map<String,Object> data);
     Map<String,Object> selectCloseout(Long projectId);
