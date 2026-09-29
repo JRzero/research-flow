@@ -109,6 +109,7 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         Map<String,Object> data=new LinkedHashMap<>(input); data.put("proposalId",proposalId); data.put("version",integer(p.get("version"),0)); data.put("username",username);
         ResearchFlowRules.require(mapper.updateProposal(data)==1,"申请已被其他用户修改，请刷新后重试");
         if(input.containsKey("budgetLines")) replaceProposalBudget(proposalId,list(input.get("budgetLines")));
+        if(input.containsKey("expectedOutputs")) replaceExpectedOutputs(proposalId,list(input.get("expectedOutputs")));
     }
 
     @Override
@@ -381,6 +382,7 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         Map<String,Object> award=mapper.selectAward(longValue(project.get("awardId")));b.put("scopeSnapshot",toJson(Map.of("scope",nullToEmpty(award==null?null:award.get("approvedScope")))));b.put("objectiveSnapshot",toJson(Map.of("objectives",nullToEmpty(award==null?null:award.get("approvedObjectives")))));b.put("outputSnapshot",toJson(mapper.selectExpectedOutputs(longValue(project.get("proposalId")))));b.put("workPlanSnapshot",toJson(mapper.selectWorkItems(projectId)));Map<String,Object> budget=mapper.selectCurrentBudget(projectId);b.put("budgetSnapshot",toJson(budget==null?Map.of():Map.of("budget",budget,"lines",mapper.selectBudgetLines(longValue(budget.get("budgetId"))))));b.put("createdByUserId",userId);mapper.insertBaseline(b);return longValue(b.get("baselineId"));
     }
     private void replaceProposalBudget(Long proposalId,List<Map<String,Object>> lines){mapper.deleteProposalBudget(proposalId);for(Map<String,Object>line:lines){line.put("proposalId",proposalId);mapper.insertProposalBudgetLine(line);}}
+    private void replaceExpectedOutputs(Long proposalId,List<Map<String,Object>> outputs){mapper.deleteExpectedOutputs(proposalId);for(Map<String,Object>output:outputs){output.put("proposalId",proposalId);mapper.insertExpectedOutput(output);}}
     private void insertDocument(Long recordId,String type,Long businessId,String category,Map<String,Object>d,Long userId){Map<String,Object>x=new LinkedHashMap<>(d);x.put("recordId",recordId);x.put("businessType",type);x.put("businessId",businessId);x.put("category",category);x.put("storageProvider","LOCAL");x.put("uploadedBy",userId);mapper.insertDocument(x);}
     private Long startWorkflow(String wfType,String bizType,Long bizId,Long userId,String step){Map<String,Object>w=new LinkedHashMap<>();w.put("workflowType",wfType);w.put("businessType",bizType);w.put("businessId",bizId);w.put("status","RUNNING");w.put("currentStep",step);w.put("startedBy",userId);mapper.insertWorkflow(w);return longValue(w.get("workflowId"));}
     private void workflowAction(Long wfId,String step,String action,Long userId,String comment){Map<String,Object>a=new LinkedHashMap<>();a.put("workflowId",wfId);a.put("stepCode",step);a.put("action",action);a.put("operatorUserId",userId);a.put("comment",comment);mapper.insertWorkflowAction(a);}
