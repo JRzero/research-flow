@@ -20,16 +20,17 @@
 import useUserStore from '@/store/modules/user'
 import brandMark from '@/assets/logo/researchflow-mark.svg'
 const router=useRouter(),route=useRoute(),userStore=useUserStore()
-const navItems=[
+const isAdmin=computed(()=>userStore.roles.includes('admin'))
+const isResearchAdmin=computed(()=>isAdmin.value||userStore.roles.includes('research_admin'))
+const navItems=computed(()=>[
  {path:'/research/dashboard',label:'工作台',icon:'HomeFilled'},
  {path:'/research/proposals',label:'项目申请',icon:'EditPen'},
  {path:'/research/projects',label:'科研项目',icon:'FolderOpened'},
- {path:'/research/approvals',label:'审批中心',icon:'Finished'},
+ {path:'/research/approvals',label:'审批中心',icon:'Finished',adminOnly:true},
  {path:'/research/risks',label:'风险问题',icon:'Warning'},
  {path:'/research/analytics',label:'数据概览',icon:'DataAnalysis',mobileHide:true}
-]
-const isAdmin=computed(()=>userStore.roles.includes('admin'))
-const roleText=computed(()=>isAdmin.value||userStore.roles.includes('research_admin')?'科研管理员':userStore.roles.includes('research_manager')?'管理者':'科研用户')
+].filter(item=>!item.adminOnly||isResearchAdmin.value))
+const roleText=computed(()=>isResearchAdmin.value?'科研管理员':userStore.roles.includes('research_manager')?'管理者':'科研用户')
 const map={
  '/research/dashboard':['科研工作台','申报、执行与治理事项一屏掌握'],
  '/research/proposals':['项目申请','从研究想法到正式立项'],
@@ -43,10 +44,10 @@ function command(c){if(c==='profile')router.push('/user/profile');if(c==='admin'
 </script>
 <style scoped lang="scss">
 .research-shell{min-height:100dvh;background:var(--rf-bg);color:var(--rf-text)}.skip-link{position:fixed;left:12px;top:8px;z-index:1000;transform:translateY(-140%);padding:8px 12px;background:#fff;border-radius:8px}.skip-link:focus{transform:none}
-.sidebar{position:fixed;inset:0 auto 0 0;width:220px;background:var(--rf-sidebar);display:flex;flex-direction:column;z-index:40}.brand{height:64px;padding:0 16px;border:0;border-bottom:1px solid rgba(148,163,184,.14);background:none;color:#fff;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer}.brand img{width:34px;height:34px}.brand>div{display:flex;flex-direction:column;gap:2px}.brand strong{font-size:14px}.brand span{font-size:11px;color:var(--rf-sidebar-muted)}
+.sidebar{position:fixed;inset:0 auto 0 0;width:220px;background:var(--rf-sidebar);display:flex;flex-direction:column;z-index:40}.brand{height:56px;padding:0 16px;border:0;border-bottom:1px solid rgba(148,163,184,.14);background:none;color:#fff;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer}.brand img{width:34px;height:34px}.brand>div{display:flex;flex-direction:column;gap:2px}.brand strong{font-size:14px}.brand span{font-size:11px;color:var(--rf-sidebar-muted)}
 .nav{padding:10px 8px;display:flex;flex-direction:column;gap:3px;flex:1}.nav-item{min-height:40px;padding:0 11px;border-radius:8px;display:flex;align-items:center;gap:10px;color:#a8b5c7;text-decoration:none;font-size:13px}.nav-item:hover{background:rgba(255,255,255,.06);color:#fff}.nav-item.router-link-active{background:rgba(37,99,235,.25);color:#fff;box-shadow:inset 2px 0 #60a5fa}.nav-item .el-icon{font-size:17px}
 .user{margin:8px;padding:8px;border-top:1px solid rgba(148,163,184,.14);display:flex;align-items:center;gap:8px;color:#fff}.user>div{min-width:0;flex:1;display:flex;flex-direction:column}.user strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}.user span{font-size:11px;color:var(--rf-sidebar-muted)}.user :deep(.el-button){color:#a8b5c7}
-.main{min-height:100dvh;margin-left:220px}.header{height:64px;padding:0 20px;border-bottom:1px solid var(--rf-border);position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--rf-surface) 94%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between}.header h1{margin:0;font-size:17px;font-weight:720}.header p{margin:3px 0 0;color:var(--rf-text-muted);font-size:11px}.role{padding:5px 8px;border:1px solid var(--rf-border);border-radius:999px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-secondary)}.content{width:min(100%,1540px);margin:auto;padding:16px 20px 36px}
+.main{min-height:100dvh;margin-left:220px}.header{height:56px;padding:0 20px;border-bottom:1px solid var(--rf-border);position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--rf-surface) 94%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between}.header h1{margin:0;font-size:17px;font-weight:720}.header p{margin:3px 0 0;color:var(--rf-text-muted);font-size:11px}.role{padding:5px 8px;border:1px solid var(--rf-border);border-radius:999px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-secondary)}.content{width:min(100%,1540px);margin:auto;padding:12px 16px 28px}
 @media(max-width:1024px){.sidebar{width:72px}.brand{justify-content:center;padding:0}.brand>div,.nav-item span,.user>div,.user .el-dropdown{display:none}.nav-item{justify-content:center;padding:0}.main{margin-left:72px}.content{padding:14px 16px}}
 @media(max-width:767px){.research-shell{padding-bottom:68px}.sidebar{inset:auto 0 0 0;width:auto;height:68px;background:var(--rf-surface);border-top:1px solid var(--rf-border)}.brand,.user{display:none}.nav{padding:5px 8px;flex-direction:row;gap:2px}.nav-item{min-width:0;min-height:56px;flex:1;padding:4px;flex-direction:column;justify-content:center;gap:2px;color:var(--rf-text-muted);font-size:10px}.nav-item span{display:block}.nav-item.router-link-active{box-shadow:none;background:var(--rf-primary-soft);color:var(--rf-primary)}.nav-item.mobile-hide{display:none}.main{margin-left:0}.header{height:58px;padding:0 14px}.header p{display:none}.content{padding:12px 12px 24px}}
 </style>
