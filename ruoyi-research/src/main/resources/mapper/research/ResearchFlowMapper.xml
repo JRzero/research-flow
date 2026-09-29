@@ -2,6 +2,15 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ruoyi.research.v2.ResearchFlowMapper">
 
+  <select id="selectAssignableUsers" resultType="map">
+    select u.user_id userId,u.user_name userName,u.nick_name nickName,d.dept_name deptName
+    from sys_user u left join sys_dept d on d.dept_id=u.dept_id
+    where u.status='0' and u.del_flag='0'
+    <if test="keyword != null and keyword != ''">and (u.user_name like concat('%',#{keyword},'%') or u.nick_name like concat('%',#{keyword},'%'))</if>
+    order by u.user_id
+    limit 100
+  </select>
+
   <insert id="insertRecord" parameterType="map" useGeneratedKeys="true" keyProperty="recordId">
     insert into research_record(record_no,title,owner_user_id,dept_id,create_by)
     values(#{recordNo},#{title},#{ownerUserId},#{deptId},#{username})
