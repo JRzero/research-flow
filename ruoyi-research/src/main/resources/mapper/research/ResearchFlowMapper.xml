@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.research.v2.ResearchFlowMapper">
+
+  <insert id="insertRecord" parameterType="map" useGeneratedKeys="true" keyProperty="recordId">
+    insert into research_record(record_no,title,owner_user_id,dept_id,create_by)
+    values(#{recordNo},#{title},#{ownerUserId},#{deptId},#{username})
+  </insert>
+  <update id="updateRecordPhase">update research_record set current_phase=#{phase}, status=#{status} where record_id=#{recordId}</update>
+  <select id="selectRecord" resultType="map">select * from research_record where record_id=#{recordId}</select>
+
+  <insert id="insertProposal" parameterType="map" useGeneratedKeys="true" keyProperty="proposalId">
+    insert into research_proposal(record_id,call_id,proposal_no,title,applicant_user_id,applicant_dept_id,background,objectives,project_scope,out_of_scope,research_content,methodology,innovation_points,success_criteria,planned_start_date,planned_end_date,requested_budget,status,create_by)
+    values(#{recordId},#{callId},#{proposalNo},#{title},#{applicantUserId},#{applicantDeptId},#{background},#{objectives},#{projectScope},#{outOfScope},#{researchContent},#{methodology},#{innovationPoints},#{successCriteria},#{plannedStartDate},#{plannedEndDate},#{requestedBudget},#{status},#{username})
+  </insert>
+  <update id="updateProposal" parameterType="map">
+    update research_proposal
+    <set>
+      <if test="title != null">title=#{title},</if><if test="background != null">background=#{background},</if><if test="objectives != null">objectives=#{objectives},</if>
+      <if test="projectScope != null">project_scope=#{projectScope},</if><if test="outOfScope != null">out_of_scope=#{outOfScope},</if>
+      <if test="researchContent != null">research_content=#{researchContent},</if><if test="methodology != null">methodology=#{methodology},</if><if test="innovationPoints != null">innovation_points=#{innovationPoints},</if>
+      <if test="successCriteria != null">success_criteria=#{successCriteria},</if><if test="plannedStartDate != null">planned_start_date=#{plannedStartDate},</if><if test="plannedEndDate != null">planned_end_date=#{plannedEndDate},</if>
+      <if test="requestedBudget != null">requested_budget=#{requestedBudget},</if>
+      update_by=#{username},version=version+1
+    </set>
+    where proposal_id=#{proposalId} and version=#{version}
+  </update>
+  <update id="updateProposalStatus">
+    update research_proposal set status=#{status},
+      submitted_at=case when #{status}='UNDER_REVIEW' then now() else submitted_at end,
+      approved_at=case when #{status}='APPROVED' then now() else approved_at end,
+      rejected_at=case when #{status}='REJECTED' then now() else rejected_at end,
+      version=version+1
+    where proposal_id=#{proposalId}
+  </update>
+  <select id="selectProposal" resultType="map">
+    select p.proposal_id proposalId,p.record_id recordId,p.call_id callId,p.proposal_no proposalNo,p.title,
+      p.applicant_user_id applicantUserId,p.applicant_dept_id applicantDeptId,p.background,p.objectives,p.project_scope projectScope,p.out_of_scope outOfScope,
+      p.research_content researchContent,p.methodology,p.innovation_points innovationPoints,p.success_criteria successCriteria,p.planned_start_date plannedStartDate,p.planned_end_date plannedEndDate,
+      p.requested_budget requestedBudget,p.status,p.version,p.submitted_at submittedAt,p.approved_at approvedAt,p.create_time createTime,
+      u.nick_name applicantName,d.dept_name deptName,r.record_no recordNo,r.current_phase currentPhase
+    from research_proposal p join research_record r on r.record_id=p.record_id
+    left join sys_user u on u.user_id=p.applicant_user_id left join sys_dept d on d.dept_id=p.applicant_dept_id
+    where p.proposal_id=#{proposalId}
+  </select>
+  <select id="selectProposals" resultType="map">
+    select p.proposal_id proposalId,p.record_id recordId,p.proposal_no proposalNo,p.title,p.status,p.requested_budget requestedBudget,p.planned_start_date plannedStartDate,p.planned_end_date plannedEndDate,
+      p.applicant_user_id applicantUserId,u.nick_name applicantName,d.dept_name deptName,p.update_time updateTime,
+      (select count(*) from research_document doc where doc.business_type='PROPOSAL' and doc.business_id=p.proposal_id and doc.status='ACTIVE') documentCount
+    from research_proposal p left join sys_user u on u.user_id=p.applicant_user_id left join sys_dept d on d.dept_id=p.applicant_dept_id
+    <where>
+      <if test="!viewAll">p.applicant_user_id=#{userId}</if>
+      <if test="status != null and status != ''">and p.status=#{status}</if>
+      <if test="keyword != null and keyword != ''">and (p.title like concat('%',#{keyword},'%') or p.proposal_no like concat('%',#{keyword},'%'))</if>
+    </where>
+    order by p.update_time desc,p.proposal_id desc
+  </select>
+
+  <select id="countProposalMembers" resultType="int">select count(*) from research_proposal_member where proposal_id=#{proposalId}</select>
+  <select id="selectProposalMembers" resultType="map">select m.member_id memberId,m.user_id userId,m.member_role memberRole,m.responsibility,m.planned_allocation plannedAllocation,u.nick_name userName from research_proposal_member m left join sys_user u on u.user_id=m.user_id where m.proposal_id=#{proposalId} order by m.sort_order,m.member_id</select>
+  <insert id="insertProposalMember" parameterType="map" useGeneratedKeys="true" keyProperty="memberId">insert into research_proposal_member(proposal_id,user_id,member_role,responsibility,planned_allocation,sort_order,create_by) values(#{proposalId},#{userId},#{memberRole},#{responsibility},#{plannedAllocation},#{sortOrder},#{username})</insert>
+  <delete id="deleteProposalBudget">delete from research_proposal_budget_line where proposal_id=#{proposalId}</delete>
+  <insert id="insertProposalBudgetLine" parameterType="map" useGeneratedKeys="true" keyProperty="budgetLineId">insert into research_proposal_budget_line(proposal_id,category,amount,description,sort_order) values(#{proposalId},#{category},#{amount},#{description},#{sortOrder})</insert>
+  <select id="selectProposalBudget" resultType="map">select budget_line_id budgetLineId,category,amount,description,sort_order sortOrder from research_proposal_budget_line where proposal_id=#{proposalId} order by sort_order,budget_line_id</select>
+  <insert id="insertExpectedOutput" parameterType="map" useGeneratedKeys="true" keyProperty="expectedOutputId">insert into research_expected_output(proposal_id,output_type,name,target_quantity,target_description) values(#{proposalId},#{outputType},#{name},#{targetQuantity},#{targetDescription})</insert>
+  <select id="selectExpectedOutputs" resultType="map">select expected_output_id expectedOutputId,output_type outputType,name,target_quantity targetQuantity,target_description targetDescription from research_expected_output where proposal_id=#{proposalId}</select>
+
+  <insert id="insertReview" parameterType="map" useGeneratedKeys="true" keyProperty="reviewId">insert into research_review(proposal_id,review_type,reviewer_user_id,status,started_at) values(#{proposalId},#{reviewType},#{reviewerUserId},#{status},now())</insert>
+  <update id="completeReview">update research_review set reviewer_user_id=#{reviewerId},decision=#{decision},comment=#{comment},status='COMPLETED',completed_at=now() where proposal_id=#{proposalId} and status='PENDING'</update>
+  <select id="selectReviews" resultType="map">select r.review_id reviewId,r.review_type reviewType,r.reviewer_user_id reviewerUserId,u.nick_name reviewerName,r.score,r.decision,r.comment,r.status,r.started_at startedAt,r.completed_at completedAt from research_review r left join sys_user u on u.user_id=r.reviewer_user_id where r.proposal_id=#{proposalId} order by r.review_id</select>
+
+  <insert id="insertAward" parameterType="map" useGeneratedKeys="true" keyProperty="awardId">insert into research_award(record_id,proposal_id,award_no,approved_title,approved_start_date,approved_end_date,approved_budget,approved_scope,approved_objectives,approved_outputs,status,issued_at,create_by) values(#{recordId},#{proposalId},#{awardNo},#{approvedTitle},#{approvedStartDate},#{approvedEndDate},#{approvedBudget},#{approvedScope},#{approvedObjectives},#{approvedOutputs},'ISSUED',now(),#{username})</insert>
+  <select id="selectAwardByProposal" resultType="map">select award_id awardId,record_id recordId,proposal_id proposalId,award_no awardNo,approved_title approvedTitle,approved_start_date approvedStartDate,approved_end_date approvedEndDate,approved_budget approvedBudget,approved_scope approvedScope,approved_objectives approvedObjectives,approved_outputs approvedOutputs,status,issued_at issuedAt from research_award where proposal_id=#{proposalId}</select>
+  <select id="selectAward" resultType="map">select award_id awardId,record_id recordId,proposal_id proposalId,award_no awardNo,approved_title approvedTitle,approved_start_date approvedStartDate,approved_end_date approvedEndDate,approved_budget approvedBudget,approved_scope approvedScope,approved_objectives approvedObjectives,approved_outputs approvedOutputs,status from research_award where award_id=#{awardId}</select>
+
+  <insert id="insertProject" parameterType="map" useGeneratedKeys="true" keyProperty="projectId">insert into research_project(record_id,proposal_id,award_id,project_no,project_name,pi_user_id,dept_id,planned_start_date,planned_end_date,current_budget,status,create_by) values(#{recordId},#{proposalId},#{awardId},#{projectNo},#{projectName},#{piUserId},#{deptId},#{plannedStartDate},#{plannedEndDate},#{currentBudget},'PLANNING',#{username})</insert>
+  <update id="updateProjectStatus">update research_project set status=#{status},activated_at=case when #{status}='ACTIVE' and activated_at is null then now() else activated_at end,closing_at=case when #{status}='CLOSING' then now() else closing_at end,closed_at=case when #{status}='CLOSED' then now() else closed_at end,version=version+1 where project_id=#{projectId}</update>
+  <update id="updateProjectCurrentPlan">update research_project set planned_end_date=#{plannedEndDate},current_budget=#{currentBudget},version=version+1 where project_id=#{projectId}</update>
+  <update id="updateProjectBaseline">update research_project set current_baseline_id=#{baselineId},status=#{status},activated_at=case when #{status}='ACTIVE' and activated_at is null then now() else activated_at end,version=version+1 where project_id=#{projectId}</update>
+  <update id="updateProjectProgressFromWorkItems">update research_project p set p.progress=(select coalesce(round(avg(w.progress)),0) from research_work_item w where w.project_id=p.project_id and w.item_type in ('TASK','MILESTONE')) where p.project_id=#{projectId}</update>
+  <select id="selectProject" resultType="map">
+    select p.project_id projectId,p.record_id recordId,p.proposal_id proposalId,p.award_id awardId,p.project_no projectNo,p.project_name projectName,p.pi_user_id piUserId,
+      p.dept_id deptId,p.planned_start_date plannedStartDate,p.planned_end_date plannedEndDate,p.current_budget currentBudget,p.current_baseline_id currentBaselineId,p.progress,p.status,p.version,
+      p.activated_at activatedAt,p.closed_at closedAt,u.nick_name piName,d.dept_name deptName,r.record_no recordNo,
+      a.award_no awardNo,a.approved_scope approvedScope,a.approved_objectives approvedObjectives,a.approved_outputs approvedOutputs
+    from research_project p join research_record r on r.record_id=p.record_id join research_award a on a.award_id=p.award_id
+    left join sys_user u on u.user_id=p.pi_user_id left join sys_dept d on d.dept_id=p.dept_id where p.project_id=#{projectId}
+  </select>
+  <select id="selectProjects" resultType="map">
+    select p.project_id projectId,p.record_id recordId,p.project_no projectNo,p.project_name projectName,p.pi_user_id piUserId,u.nick_name piName,d.dept_name deptName,
+      p.planned_start_date plannedStartDate,p.planned_end_date plannedEndDate,p.current_budget currentBudget,p.progress,p.status,p.update_time updateTime,
+      coalesce((select sum(e.amount) from research_expense e where e.project_id=p.project_id),0) usedBudget,
+      (select count(*) from research_risk r where r.project_id=p.project_id and r.status not in ('CLOSED')) openRiskCount,
+      (select count(*) from research_issue i where i.project_id=p.project_id and i.status not in ('RESOLVED','CLOSED')) openIssueCount
+    from research_project p left join sys_user u on u.user_id=p.pi_user_id left join sys_dept d on d.dept_id=p.dept_id
+    <where>
+      <if test="!viewAll">and (p.pi_user_id=#{userId} or exists(select 1 from research_project_member pm where pm.project_id=p.project_id and pm.user_id=#{userId} and pm.status='ACTIVE'))</if>
+      <if test="status != null and status != ''">and p.status=#{status}</if>
+      <if test="keyword != null and keyword != ''">and (p.project_name like concat('%',#{keyword},'%') or p.project_no like concat('%',#{keyword},'%'))</if>
+    </where>
+    order by p.update_time desc,p.project_id desc
+  </select>
+  <insert id="insertProjectMember" parameterType="map" useGeneratedKeys="true" keyProperty="memberId">insert into research_project_member(project_id,user_id,member_role,responsibility,allocation_percent,join_date,status,create_by) values(#{projectId},#{userId},#{memberRole},#{responsibility},#{allocationPercent},coalesce(#{joinDate},curdate()),'ACTIVE',#{username})</insert>
+  <insert id="copyProposalMembersToProject">insert into research_project_member(project_id,user_id,member_role,responsibility,allocation_percent,join_date,status,create_by) select #{projectId},user_id,member_role,responsibility,planned_allocation,curdate(),'ACTIVE',#{username} from research_proposal_member where proposal_id=#{proposalId}</insert>
+  <select id="selectProjectMembers" resultType="map">select m.member_id memberId,m.user_id userId,m.member_role memberRole,m.responsibility,m.allocation_percent allocationPercent,m.status,u.nick_name userName from research_project_member m left join sys_user u on u.user_id=m.user_id where m.project_id=#{projectId} order by m.member_id</select>
+  <select id="isProjectMember" resultType="int">select count(*) from research_project_member where project_id=#{projectId} and user_id=#{userId} and status='ACTIVE'</select>
+
+  <insert id="insertWorkItem" parameterType="map" useGeneratedKeys="true" keyProperty="workItemId">insert into research_work_item(project_id,parent_id,item_type,wbs_code,title,description,owner_user_id,planned_start_date,planned_end_date,weight,progress,status,priority,sort_order,create_by) values(#{projectId},#{parentId},#{itemType},#{wbsCode},#{title},#{description},#{ownerUserId},#{plannedStartDate},#{plannedEndDate},#{weight},#{progress},#{status},coalesce(#{priority},'MEDIUM'),#{sortOrder},#{username})</insert>
+  <select id="selectWorkItem" resultType="map">select work_item_id workItemId,project_id projectId,parent_id parentId,item_type itemType,wbs_code wbsCode,title,description,owner_user_id ownerUserId,planned_start_date plannedStartDate,planned_end_date plannedEndDate,actual_start_date actualStartDate,actual_end_date actualEndDate,weight,progress,status,priority,sort_order sortOrder from research_work_item where work_item_id=#{workItemId}</select>
+  <select id="selectWorkItems" resultType="map">select w.work_item_id workItemId,w.project_id projectId,w.parent_id parentId,w.item_type itemType,w.wbs_code wbsCode,w.title,w.description,w.owner_user_id ownerUserId,u.nick_name ownerName,w.planned_start_date plannedStartDate,w.planned_end_date plannedEndDate,w.actual_start_date actualStartDate,w.actual_end_date actualEndDate,w.weight,w.progress,w.status,w.priority,w.sort_order sortOrder from research_work_item w left join sys_user u on u.user_id=w.owner_user_id where w.project_id=#{projectId} order by w.sort_order,w.work_item_id</select>
+  <update id="updateWorkItemAction">update research_work_item set status=#{status},progress=#{progress},actual_start_date=case when #{status}='IN_PROGRESS' and actual_start_date is null then curdate() else actual_start_date end,actual_end_date=case when #{status}='DONE' then curdate() else actual_end_date end,update_by=#{username},version=version+1 where work_item_id=#{workItemId}</update>
+  <select id="countWorkItems" resultType="int">select count(*) from research_work_item where project_id=#{projectId}</select>
+
+  <insert id="insertProgressReport" parameterType="map" useGeneratedKeys="true" keyProperty="reportId">insert into research_progress_report(project_id,report_no,report_type,period_start,period_end,overall_progress,completed_work,key_achievements,problems,risks,next_plan,support_needed,budget_summary,status,prepared_by,submitted_at,create_by) values(#{projectId},#{reportNo},coalesce(#{reportType},'AD_HOC'),#{periodStart},#{periodEnd},#{overallProgress},#{completedWork},#{keyAchievements},#{problems},#{risks},#{nextPlan},#{supportNeeded},#{budgetSummary},#{status},#{preparedBy},now(),#{username})</insert>
+  <select id="selectProgressReports" resultType="map">select r.report_id reportId,r.report_no reportNo,r.report_type reportType,r.period_start periodStart,r.period_end periodEnd,r.overall_progress overallProgress,r.completed_work completedWork,r.key_achievements keyAchievements,r.problems,r.risks,r.next_plan nextPlan,r.support_needed supportNeeded,r.budget_summary budgetSummary,r.status,r.prepared_by preparedBy,u.nick_name preparedByName,r.submitted_at submittedAt from research_progress_report r left join sys_user u on u.user_id=r.prepared_by where r.project_id=#{projectId} order by r.submitted_at desc,r.report_id desc</select>
+
+  <insert id="insertRisk" parameterType="map" useGeneratedKeys="true" keyProperty="riskId">insert into research_risk(project_id,risk_no,title,description,category,probability,impact,score,risk_level,trigger_condition,response_strategy,owner_user_id,source,rule_code,status,identified_at,create_by) values(#{projectId},#{riskNo},#{title},#{description},#{category},#{probability},#{impact},#{score},#{riskLevel},#{triggerCondition},#{responseStrategy},#{ownerUserId},#{source},#{ruleCode},#{status},now(),#{username})</insert>
+  <select id="selectRisk" resultType="map">select risk_id riskId,project_id projectId,risk_no riskNo,title,description,category,probability,impact,score,risk_level riskLevel,trigger_condition triggerCondition,response_strategy responseStrategy,owner_user_id ownerUserId,source,rule_code ruleCode,status from research_risk where risk_id=#{riskId}</select>
+  <select id="selectProjectRisks" resultType="map">select r.risk_id riskId,r.project_id projectId,r.risk_no riskNo,r.title,r.description,r.category,r.probability,r.impact,r.score,r.risk_level riskLevel,r.trigger_condition triggerCondition,r.response_strategy responseStrategy,r.owner_user_id ownerUserId,u.nick_name ownerName,r.source,r.rule_code ruleCode,r.status,r.identified_at identifiedAt from research_risk r left join sys_user u on u.user_id=r.owner_user_id where r.project_id=#{projectId} order by field(r.risk_level,'CRITICAL','HIGH','MEDIUM','LOW'),r.risk_id desc</select>
+  <select id="selectAllRisks" resultType="map">select r.risk_id riskId,r.project_id projectId,r.risk_no riskNo,r.title,r.description,r.risk_level riskLevel,r.score,r.status,r.source,p.project_no projectNo,p.project_name projectName,u.nick_name ownerName from research_risk r join research_project p on p.project_id=r.project_id left join sys_user u on u.user_id=r.owner_user_id <where><if test="!viewAll">and (p.pi_user_id=#{userId} or exists(select 1 from research_project_member pm where pm.project_id=p.project_id and pm.user_id=#{userId}))</if></where> order by field(r.risk_level,'CRITICAL','HIGH','MEDIUM','LOW'),r.risk_id desc</select>
+  <update id="updateRiskStatus">update research_risk set status=#{status},closed_at=case when #{status}='CLOSED' then now() else closed_at end,update_by=#{username},version=version+1 where risk_id=#{riskId}</update>
+
+  <insert id="insertIssue" parameterType="map" useGeneratedKeys="true" keyProperty="issueId">insert into research_issue(project_id,source_risk_id,issue_no,title,description,severity,owner_user_id,occurred_at,due_date,status,create_by) values(#{projectId},#{sourceRiskId},#{issueNo},#{title},#{description},coalesce(#{severity},'MEDIUM'),#{ownerUserId},now(),#{dueDate},#{status},#{username})</insert>
+  <select id="selectIssue" resultType="map">select issue_id issueId,project_id projectId,source_risk_id sourceRiskId,issue_no issueNo,title,description,severity,owner_user_id ownerUserId,due_date dueDate,status,resolution from research_issue where issue_id=#{issueId}</select>
+  <select id="selectProjectIssues" resultType="map">select i.issue_id issueId,i.project_id projectId,i.source_risk_id sourceRiskId,i.issue_no issueNo,i.title,i.description,i.severity,i.owner_user_id ownerUserId,u.nick_name ownerName,i.occurred_at occurredAt,i.due_date dueDate,i.status,i.resolution from research_issue i left join sys_user u on u.user_id=i.owner_user_id where i.project_id=#{projectId} order by i.issue_id desc</select>
+  <select id="selectAllIssues" resultType="map">select i.issue_id issueId,i.project_id projectId,i.issue_no issueNo,i.title,i.description,i.severity,i.status,i.due_date dueDate,p.project_no projectNo,p.project_name projectName,u.nick_name ownerName from research_issue i join research_project p on p.project_id=i.project_id left join sys_user u on u.user_id=i.owner_user_id <where><if test="!viewAll">and (p.pi_user_id=#{userId} or exists(select 1 from research_project_member pm where pm.project_id=p.project_id and pm.user_id=#{userId}))</if></where> order by i.issue_id desc</select>
+  <update id="updateIssueStatus">update research_issue set status=#{status},resolution=case when #{resolution}!='' then #{resolution} else resolution end,resolved_at=case when #{status}='RESOLVED' then now() else resolved_at end,closed_at=case when #{status}='CLOSED' then now() else closed_at end,update_by=#{username},version=version+1 where issue_id=#{issueId}</update>
+  <select id="countBlockingIssues" resultType="int">select count(*) from research_issue where project_id=#{projectId} and severity in ('HIGH','CRITICAL') and status not in ('RESOLVED','CLOSED')</select>
+
+  <insert id="insertDecision" parameterType="map" useGeneratedKeys="true" keyProperty="decisionId">insert into research_decision(project_id,decision_no,title,context,decision,reason,decision_maker_user_id,related_risk_id,related_issue_id,related_change_id,decided_at,create_by) values(#{projectId},#{decisionNo},#{title},#{context},#{decision},#{reason},#{decisionMakerUserId},#{relatedRiskId},#{relatedIssueId},#{relatedChangeId},now(),#{username})</insert>
+  <select id="selectDecisions" resultType="map">select decision_id decisionId,decision_no decisionNo,title,context,decision,reason,decision_maker_user_id decisionMakerUserId,decided_at decidedAt from research_decision where project_id=#{projectId} order by decided_at desc</select>
+
+  <insert id="insertChange" parameterType="map" useGeneratedKeys="true" keyProperty="changeId">insert into research_change_request(project_id,change_no,title,reason,applicant_user_id,scope_impact,schedule_impact,cost_impact,output_impact,risk_impact,status,create_by) values(#{projectId},#{changeNo},#{title},#{reason},#{applicantUserId},#{scopeImpact},#{scheduleImpact},#{costImpact},#{outputImpact},#{riskImpact},#{status},#{username})</insert>
+  <insert id="insertChangeItem" parameterType="map" useGeneratedKeys="true" keyProperty="changeItemId">insert into research_change_item(change_id,change_type,field_code,before_value,after_value,description) values(#{changeId},#{changeType},#{fieldCode},#{beforeValue},#{afterValue},#{description})</insert>
+  <select id="selectChange" resultType="map">select change_id changeId,project_id projectId,change_no changeNo,title,reason,applicant_user_id applicantUserId,scope_impact scopeImpact,schedule_impact scheduleImpact,cost_impact costImpact,output_impact outputImpact,risk_impact riskImpact,status,submitted_at submittedAt,approved_at approvedAt,applied_at appliedAt from research_change_request where change_id=#{changeId}</select>
+  <select id="selectChanges" resultType="map">select c.change_id changeId,c.change_no changeNo,c.title,c.reason,c.status,c.schedule_impact scheduleImpact,c.cost_impact costImpact,c.submitted_at submittedAt,c.approved_at approvedAt,c.applied_at appliedAt,u.nick_name applicantName from research_change_request c left join sys_user u on u.user_id=c.applicant_user_id where c.project_id=#{projectId} order by c.change_id desc</select>
+  <select id="selectChangeItems" resultType="map">select change_item_id changeItemId,change_type changeType,field_code fieldCode,before_value beforeValue,after_value afterValue,description from research_change_item where change_id=#{changeId} order by change_item_id</select>
+  <update id="updateChangeStatus">update research_change_request set status=#{status},submitted_at=case when #{status}='SUBMITTED' then now() else submitted_at end,approved_at=case when #{status}='APPROVED' then now() else approved_at end,rejected_at=case when #{status}='REJECTED' then now() else rejected_at end,applied_at=case when #{status}='APPLIED' then now() else applied_at end,update_by=#{username},version=version+1 where change_id=#{changeId}</update>
+
+  <insert id="insertBudget" parameterType="map" useGeneratedKeys="true" keyProperty="budgetId">insert into research_budget(project_id,baseline_id,version_no,total_amount,status,effective_at) values(#{projectId},#{baselineId},#{versionNo},#{totalAmount},'ACTIVE',now())</insert>
+  <insert id="copyProposalBudgetToProject">insert into research_budget_line(budget_id,category,planned_amount,description) select #{budgetId},category,amount,description from research_proposal_budget_line where proposal_id=#{proposalId}</insert>
+  <select id="selectCurrentBudget" resultType="map">select budget_id budgetId,project_id projectId,baseline_id baselineId,version_no versionNo,total_amount totalAmount,status,effective_at effectiveAt from research_budget where project_id=#{projectId} and status='ACTIVE' order by version_no desc limit 1</select>
+  <select id="selectBudgetLines" resultType="map">select budget_line_id budgetLineId,budget_id budgetId,category,planned_amount plannedAmount,description from research_budget_line where budget_id=#{budgetId} order by budget_line_id</select>
+  <insert id="insertExpense" parameterType="map" useGeneratedKeys="true" keyProperty="expenseId">insert into research_expense(project_id,budget_line_id,expense_no,expense_date,amount,description,reference_no,create_by) values(#{projectId},#{budgetLineId},#{expenseNo},#{expenseDate},#{amount},#{description},#{referenceNo},#{username})</insert>
+  <select id="selectExpenses" resultType="map">select e.expense_id expenseId,e.expense_no expenseNo,e.expense_date expenseDate,e.amount,e.description,e.reference_no referenceNo,b.category from research_expense e left join research_budget_line b on b.budget_line_id=e.budget_line_id where e.project_id=#{projectId} order by e.expense_date desc,e.expense_id desc</select>
+  <select id="sumExpenses" resultType="java.math.BigDecimal">select coalesce(sum(amount),0) from research_expense where project_id=#{projectId}</select>
+
+  <insert id="insertOutcome" parameterType="map" useGeneratedKeys="true" keyProperty="outcomeId">insert into research_outcome(project_id,expected_output_id,outcome_type,name,description,status,completed_date,external_reference,create_by) values(#{projectId},#{expectedOutputId},#{outcomeType},#{name},#{description},coalesce(#{status},'COMPLETED'),#{completedDate},#{externalReference},#{username})</insert>
+  <select id="selectOutcomes" resultType="map">select outcome_id outcomeId,expected_output_id expectedOutputId,outcome_type outcomeType,name,description,status,completed_date completedDate,external_reference externalReference from research_outcome where project_id=#{projectId} order by completed_date desc,outcome_id desc</select>
+
+  <insert id="insertDocument" parameterType="map" useGeneratedKeys="true" keyProperty="documentId">insert into research_document(record_id,business_type,business_id,category,file_name,storage_provider,storage_key,mime_type,file_size,version_no,status,uploaded_by,uploaded_at) values(#{recordId},#{businessType},#{businessId},#{category},#{fileName},#{storageProvider},#{storageKey},#{mimeType},#{fileSize},coalesce(#{versionNo},1),'ACTIVE',#{uploadedBy},now())</insert>
+  <select id="selectDocuments" resultType="map">select document_id documentId,category,file_name fileName,storage_provider storageProvider,storage_key storageKey,mime_type mimeType,file_size fileSize,version_no versionNo,uploaded_by uploadedBy,uploaded_at uploadedAt from research_document where business_type=#{businessType} and business_id=#{businessId} and status='ACTIVE' order by uploaded_at desc</select>
+
+  <select id="nextBaselineVersion" resultType="int">select coalesce(max(version_no),0) from research_baseline where project_id=#{projectId}</select>
+  <insert id="insertBaseline" parameterType="map" useGeneratedKeys="true" keyProperty="baselineId">insert into research_baseline(project_id,version_no,source_type,source_id,planned_start_date,planned_end_date,approved_budget,scope_snapshot,objective_snapshot,output_snapshot,work_plan_snapshot,budget_snapshot,effective_at,status,created_by_user_id) values(#{projectId},#{versionNo},#{sourceType},#{sourceId},#{plannedStartDate},#{plannedEndDate},#{approvedBudget},#{scopeSnapshot},#{objectiveSnapshot},#{outputSnapshot},#{workPlanSnapshot},#{budgetSnapshot},now(),'ACTIVE',#{createdByUserId})</insert>
+  <select id="selectBaselines" resultType="map">select baseline_id baselineId,version_no versionNo,source_type sourceType,source_id sourceId,planned_start_date plannedStartDate,planned_end_date plannedEndDate,approved_budget approvedBudget,effective_at effectiveAt,status from research_baseline where project_id=#{projectId} order by version_no desc</select>
+
+  <insert id="insertAcceptance" parameterType="map" useGeneratedKeys="true" keyProperty="acceptanceId">insert into research_acceptance(project_id,acceptance_no,project_summary,completion_statement,outstanding_items,applicant_user_id,status,submitted_at) values(#{projectId},#{acceptanceNo},#{projectSummary},#{completionStatement},#{outstandingItems},#{applicantUserId},#{status},now())</insert>
+  <select id="selectAcceptance" resultType="map">select acceptance_id acceptanceId,acceptance_no acceptanceNo,project_summary projectSummary,completion_statement completionStatement,outstanding_items outstandingItems,applicant_user_id applicantUserId,status,submitted_at submittedAt,reviewed_at reviewedAt,review_comment reviewComment from research_acceptance where project_id=#{projectId}</select>
+  <update id="updateAcceptance">update research_acceptance set status=#{status},reviewed_at=now(),review_comment=#{comment} where project_id=#{projectId}</update>
+
+  <insert id="insertCloseout" parameterType="map" useGeneratedKeys="true" keyProperty="closeoutId">insert into research_closeout(project_id,acceptance_id,status) values(#{projectId},#{acceptanceId},'PENDING')</insert>
+  <select id="selectCloseout" resultType="map">select closeout_id closeoutId,project_id projectId,acceptance_id acceptanceId,final_report_complete finalReportComplete,finance_complete financeComplete,outputs_complete outputsComplete,documents_complete documentsComplete,issues_complete issuesComplete,archive_complete archiveComplete,conclusion,status,completed_by completedBy,completed_at completedAt from research_closeout where project_id=#{projectId}</select>
+  <update id="completeCloseout">update research_closeout set final_report_complete='1',finance_complete='1',outputs_complete='1',documents_complete='1',issues_complete='1',archive_complete='1',conclusion=#{conclusion},status='COMPLETED',completed_by=#{userId},completed_at=now() where project_id=#{projectId}</update>
+
+  <insert id="insertWorkflow" parameterType="map" useGeneratedKeys="true" keyProperty="workflowId">insert into research_workflow_instance(workflow_type,business_type,business_id,status,current_step,started_by,started_at) values(#{workflowType},#{businessType},#{businessId},#{status},#{currentStep},#{startedBy},now())</insert>
+  <update id="updateWorkflow">update research_workflow_instance set status=#{status},current_step=#{step},completed_at=case when #{status}='COMPLETED' then now() else completed_at end where business_type=#{businessType} and business_id=#{businessId} and status='RUNNING'</update>
+  <select id="selectActiveWorkflowId" resultType="long">select workflow_id from research_workflow_instance where business_type=#{businessType} and business_id=#{businessId} and status='RUNNING' order by workflow_id desc limit 1</select>
+  <insert id="insertWorkflowAction" parameterType="map" useGeneratedKeys="true" keyProperty="actionId">insert into research_workflow_action(workflow_id,step_code,action,operator_user_id,comment,acted_at) values(#{workflowId},#{stepCode},#{action},#{operatorUserId},#{comment},now())</insert>
+  <select id="selectProjectWorkflow" resultType="map">
+    select a.action_id actionId,i.business_type businessType,i.business_id businessId,a.step_code stepCode,a.action,a.operator_user_id operatorUserId,u.nick_name operatorName,a.comment,a.acted_at actedAt
+    from research_workflow_action a join research_workflow_instance i on i.workflow_id=a.workflow_id left join sys_user u on u.user_id=a.operator_user_id
+    where (i.business_type='CHANGE_REQUEST' and i.business_id in (select change_id from research_change_request where project_id=#{projectId}))
+       or (i.business_type='ACCEPTANCE' and i.business_id in (select acceptance_id from research_acceptance where project_id=#{projectId}))
+       or (i.business_type='PROPOSAL' and i.business_id=(select proposal_id from research_project where project_id=#{projectId}))
+    order by a.acted_at desc
+  </select>
+
+  <select id="selectPendingProposalReviews" resultType="map">select p.proposal_id proposalId,p.proposal_no proposalNo,p.title,'PROPOSAL' businessType,p.status,u.nick_name applicantName,p.requested_budget requestedBudget,p.submitted_at submittedAt from research_proposal p left join sys_user u on u.user_id=p.applicant_user_id where p.status='UNDER_REVIEW' order by p.submitted_at</select>
+  <select id="selectPendingChanges" resultType="map">select c.change_id changeId,c.change_no changeNo,c.title,'CHANGE' businessType,c.status,p.project_id projectId,p.project_no projectNo,p.project_name projectName,u.nick_name applicantName,c.submitted_at submittedAt from research_change_request c join research_project p on p.project_id=c.project_id left join sys_user u on u.user_id=c.applicant_user_id where c.status='SUBMITTED' order by c.submitted_at</select>
+  <select id="selectPendingAcceptances" resultType="map">select a.acceptance_id acceptanceId,a.acceptance_no acceptanceNo,'ACCEPTANCE' businessType,a.status,p.project_id projectId,p.project_no projectNo,p.project_name projectName,u.nick_name applicantName,a.submitted_at submittedAt from research_acceptance a join research_project p on p.project_id=a.project_id left join sys_user u on u.user_id=a.applicant_user_id where a.status='SUBMITTED' order by a.submitted_at</select>
+</mapper>
