@@ -72,7 +72,7 @@ import useUserStore from '@/store/modules/user'
 const router = useRouter(); const userStore = useUserStore(); const { proxy } = getCurrentInstance()
 const loading = ref(false); const saving = ref(false); const formVisible = ref(false); const projects = ref([]); const aiDescription = ref(''); const aiContent = ref(''); const aiLoading = ref(false)
 const query = reactive({ keyword:'', status:'' })
-const canCreate = computed(() => !userStore.roles.includes('research_manager'))
+const canCreate = computed(() => userStore.roles.includes('admin') || userStore.roles.includes('research_admin') || userStore.roles.includes('research_owner'))
 const statusOptions = [
   {value:'DRAFT',label:'草稿'},{value:'PENDING_APPROVAL',label:'待审批'},{value:'APPROVED',label:'已立项'},
   {value:'IN_PROGRESS',label:'执行中'},{value:'PENDING_ACCEPTANCE',label:'待验收'},{value:'COMPLETED',label:'已结项'},{value:'REJECTED',label:'已驳回'}
