@@ -64,6 +64,7 @@
   <select id="selectProposalBudget" resultType="map">select budget_line_id budgetLineId,category,amount,description,sort_order sortOrder from research_proposal_budget_line where proposal_id=#{proposalId} order by sort_order,budget_line_id</select>
   <select id="sumProposalBudget" resultType="java.math.BigDecimal">select coalesce(sum(amount),0) from research_proposal_budget_line where proposal_id=#{proposalId}</select>
   <insert id="insertExpectedOutput" parameterType="map" useGeneratedKeys="true" keyProperty="expectedOutputId">insert into research_expected_output(proposal_id,output_type,name,target_quantity,target_description) values(#{proposalId},#{outputType},#{name},#{targetQuantity},#{targetDescription})</insert>
+  <delete id="deleteExpectedOutputs">delete from research_expected_output where proposal_id=#{proposalId}</delete>
   <select id="selectExpectedOutputs" resultType="map">select expected_output_id expectedOutputId,output_type outputType,name,target_quantity targetQuantity,target_description targetDescription from research_expected_output where proposal_id=#{proposalId}</select>
 
   <insert id="insertReview" parameterType="map" useGeneratedKeys="true" keyProperty="reviewId">insert into research_review(proposal_id,review_type,reviewer_user_id,status,started_at) values(#{proposalId},#{reviewType},#{reviewerUserId},#{status},now())</insert>
