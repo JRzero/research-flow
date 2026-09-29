@@ -1,509 +1,181 @@
 <template>
-  <div v-loading="loading" class="workspace" v-if="project.projectId">
-    <section class="project-hero" aria-labelledby="project-title">
-      <div class="hero-top">
-        <el-button text @click="router.push('/research/projects')"><el-icon><ArrowLeft /></el-icon> 返回项目</el-button>
-        <div class="hero-actions">
-          <el-button v-if="canEditDraft" @click="openEdit">编辑申报</el-button>
-          <el-button v-if="canSubmit" type="primary" @click="submitProject">提交审批</el-button>
-          <template v-if="canApprove && project.status==='PENDING_APPROVAL'">
-            <el-button @click="rejectProject">驳回</el-button><el-button type="primary" @click="approveProject">审批通过</el-button>
-          </template>
-          <el-button v-if="canApprove && project.status==='APPROVED'" type="primary" @click="startProject">启动项目</el-button>
-          <el-button v-if="canSubmitAcceptance" type="success" plain @click="acceptanceVisible=true">提交验收</el-button>
-          <template v-if="canApprove && project.status==='PENDING_ACCEPTANCE'">
-            <el-button @click="reviewAcceptance(false)">退回整改</el-button><el-button type="success" @click="reviewAcceptance(true)">验收通过</el-button>
-          </template>
+  <div v-if="project.projectId" class="workspace" v-loading="loading">
+    <section class="project-head">
+      <div class="topline">
+        <el-button text @click="router.push('/research/projects')"><el-icon><ArrowLeft/></el-icon>返回</el-button>
+        <div class="actions">
+          <el-button v-if="project.status==='PLANNING'&&canManage" type="primary" @click="activate">激活项目</el-button>
+          <el-button v-if="project.status==='ACTIVE'&&canManage&&!acceptance" type="success" plain @click="acceptanceVisible=true">提交验收</el-button>
+          <template v-if="acceptance?.status==='SUBMITTED'&&isAdmin"><el-button @click="reviewAccept(false)">退回</el-button><el-button type="success" @click="reviewAccept(true)">验收通过</el-button></template>
+          <el-button v-if="project.status==='CLOSING'&&isAdmin&&closeout?.status==='PENDING'" type="primary" @click="finishCloseout">完成结项</el-button>
         </div>
       </div>
-      <div class="hero-body">
-        <div>
-          <div class="hero-kicker"><span>{{ project.projectNo }}</span><span class="status-pill" :class="project.status.toLowerCase()">{{ statusText(project.status) }}</span></div>
-          <h1 id="project-title">{{ project.projectName }}</h1>
-          <p>{{ project.summary || '暂无项目简介' }}</p>
-        </div>
-        <div class="hero-progress">
-          <div class="progress-number"><strong>{{ project.progress || 0 }}</strong><span>%</span></div>
-          <span>当前完成度</span>
-        </div>
+      <div class="identity">
+        <div class="main"><div class="kicker"><span>{{ project.projectNo }}</span><span>{{ project.awardNo }}</span><span :class="['status',tone(project.status)]">{{ statusText(project.status) }}</span></div><h2>{{ project.projectName }}</h2><p>{{ project.approvedObjectives||'暂无批准目标' }}</p></div>
+        <div class="progress"><strong>{{ project.progress||0 }}%</strong><span>当前进度</span></div>
       </div>
-      <div class="hero-meta">
-        <div><span>负责人</span><strong>{{ project.ownerName }}</strong></div>
-        <div><span>所属部门</span><strong>{{ project.deptName || '-' }}</strong></div>
-        <div><span>项目周期</span><strong>{{ project.startDate || '-' }} 至 {{ project.plannedEndDate }}</strong></div>
-        <div><span>项目预算</span><strong>¥{{ money(project.totalBudget) }}</strong></div>
+      <div class="meta">
+        <div><span>PI</span><strong>{{ project.piName }}</strong></div><div><span>部门</span><strong>{{ project.deptName||'-' }}</strong></div><div><span>计划周期</span><strong>{{ project.plannedStartDate||'-' }} ~ {{ project.plannedEndDate||'-' }}</strong></div><div><span>当前预算</span><strong>¥{{ money(project.currentBudget) }}</strong></div><div><span>当前基线</span><strong>V{{ currentBaseline?.versionNo||'-' }}</strong></div>
       </div>
     </section>
 
-    <div v-if="project.riskLevel !== 'NONE'" class="risk-banner" :class="project.riskLevel.toLowerCase()" role="status">
-      <el-icon><WarningFilled /></el-icon>
-      <div><strong>{{ project.riskLevel === 'HIGH' ? '高风险项目' : '项目需要关注' }}</strong><p>{{ project.riskReason }}</p></div>
-      <span>规则识别</span>
-    </div>
-
-    <section class="workspace-panel">
-      <el-tabs v-model="activeTab" class="workspace-tabs">
+    <section class="panel">
+      <el-tabs v-model="tab" class="tabs">
         <el-tab-pane label="概览" name="overview">
-          <div class="overview-grid">
-            <div class="overview-main">
-              <InfoBlock title="研究目标" :content="project.researchObjectives" />
-              <InfoBlock title="研究内容" :content="project.researchContent" />
-              <InfoBlock title="预期成果" :content="project.expectedDeliverables" />
-              <div class="section-block">
-                <div class="block-head">
-                  <h3>申报附件</h3>
-                  <span class="attachment-hint">项目申报阶段提交的任务书、预算说明和论证材料</span>
-                </div>
-                <ResearchAttachmentUpload :model-value="project.applicationAttachments || ''" disabled />
-              </div>
-              <div class="section-block">
-                <div class="block-head"><h3>最近进展</h3><el-button v-if="canExecute" text type="primary" @click="progressVisible=true">更新进展</el-button></div>
-                <div v-if="progressRecords.length" class="latest-progress">
-                  <div class="progress-date">{{ progressRecords[0].recordDate }}</div>
-                  <strong>完成度更新至 {{ progressRecords[0].progressPercent }}%</strong>
-                  <p>{{ progressRecords[0].completedWork }}</p>
-                  <div v-if="progressRecords[0].issues" class="issue-line"><el-icon><Warning /></el-icon>{{ progressRecords[0].issues }}</div>
-                </div>
-                <el-empty v-else description="尚未记录项目进展" :image-size="70" />
-              </div>
+          <div class="overview">
+            <div class="col">
+              <Info title="批准范围" :text="project.approvedScope"/>
+              <Info title="批准目标" :text="project.approvedObjectives"/>
+              <div class="box"><div class="box-head"><strong>项目团队</strong><span>{{ members.length }} 人</span></div><div class="compact-list"><div v-for="m in members" :key="m.memberId"><span>{{ m.userName }}</span><b>{{ roleText(m.memberRole) }}</b><small>{{ m.responsibility||'-' }}</small></div></div></div>
             </div>
-            <aside class="overview-side">
-              <div class="health-card">
-                <div class="block-head"><h3>项目健康度</h3><span :class="['health-tag',project.riskLevel?.toLowerCase()]">{{ project.riskLevel==='NONE'?'正常':project.riskLevel==='HIGH'?'高风险':'需关注' }}</span></div>
-                <MetricLine label="任务进度" :value="project.progress || 0" />
-                <MetricLine label="预算执行" :value="budgetRate" />
-                <div class="mini-stat"><span>里程碑</span><strong>{{ completedMilestones }}/{{ milestones.length }}</strong></div>
-                <div class="mini-stat"><span>成果登记</span><strong>{{ deliverables.length }}</strong></div>
-              </div>
-              <div class="next-card">
-                <span>下一个里程碑</span>
-                <template v-if="nextMilestone"><strong>{{ nextMilestone.title }}</strong><p>计划 {{ nextMilestone.dueDate }} 完成</p></template>
-                <p v-else>暂无待完成里程碑</p>
-              </div>
-            </aside>
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane :label="`里程碑 ${milestones.length}`" name="milestones">
-          <div class="tab-head"><div><h3>项目里程碑</h3><p>用可验证节点表达项目进度，而不是只依赖一个百分比。</p></div><el-button v-if="canExecute" type="primary" plain @click="milestoneVisible=true"><el-icon><Plus /></el-icon> 添加里程碑</el-button></div>
-          <div v-if="milestones.length" class="milestone-list">
-            <div v-for="(m,index) in milestones" :key="m.milestoneId" class="milestone-item">
-              <div class="milestone-index">{{ String(index+1).padStart(2,'0') }}</div>
-              <div class="milestone-main"><div><strong>{{ m.title }}</strong><span :class="['milestone-status',m.status.toLowerCase()]">{{ milestoneStatus(m) }}</span></div><p>{{ m.description || '暂无说明' }}</p></div>
-              <div class="milestone-date"><span>计划完成</span><strong>{{ m.dueDate || '-' }}</strong></div>
-              <el-button v-if="canExecute && m.status!=='COMPLETED'" text type="primary" @click="completeMilestone(m)">标记完成</el-button>
+            <div class="side">
+              <div class="score-grid"><div><span>开放风险</span><strong :class="{danger:openRisks>0}">{{ openRisks }}</strong></div><div><span>开放问题</span><strong :class="{danger:openIssues>0}">{{ openIssues }}</strong></div><div><span>工作项</span><strong>{{ workItems.length }}</strong></div><div><span>成果</span><strong>{{ outcomes.length }}</strong></div></div>
+              <div class="box"><div class="box-head"><strong>Baseline History</strong><span>不可修改</span></div><div class="baseline" v-for="b in baselines" :key="b.baselineId"><b>V{{ b.versionNo }}</b><span>{{ b.sourceType }}</span><small>{{ b.plannedEndDate }} · ¥{{ money(b.approvedBudget) }}</small></div></div>
+              <div class="box"><div class="box-head"><strong>验收/结项</strong></div><div class="lifecycle"><span>验收：{{ acceptance?acceptanceText(acceptance.status):'未提交' }}</span><span>结项：{{ closeout?closeout.status:'未开始' }}</span></div></div>
             </div>
           </div>
-          <el-empty v-else description="暂无里程碑" />
         </el-tab-pane>
 
-        <el-tab-pane :label="`项目进展 ${progressRecords.length}`" name="progress">
-          <div class="tab-head"><div><h3>项目进展时间线</h3><p>持续记录已完成工作、问题和下一步计划。</p></div><el-button v-if="canExecute" type="primary" @click="progressVisible=true"><el-icon><Plus /></el-icon> 更新进展</el-button></div>
-          <el-timeline v-if="progressRecords.length" class="progress-timeline">
-            <el-timeline-item v-for="r in progressRecords" :key="r.progressId" :timestamp="r.recordDate" placement="top" type="primary">
-              <div class="timeline-card"><div class="timeline-head"><strong>项目进度 {{ r.progressPercent }}%</strong><span>{{ r.recorderName }}</span></div><h5>本阶段完成</h5><p>{{ r.completedWork || '-' }}</p><div class="timeline-grid"><div><h5>当前问题</h5><p>{{ r.issues || '暂无' }}</p></div><div><h5>下一阶段</h5><p>{{ r.nextPlan || '-' }}</p></div></div></div>
-            </el-timeline-item>
-          </el-timeline>
-          <el-empty v-else description="尚未记录进展" />
+        <el-tab-pane :label="'计划 '+workItems.length" name="plan">
+          <div class="tab-head"><div><strong>WBS / Work Items</strong><span>Baseline 保存批准计划，执行状态单独变化。</span></div><el-button v-if="project.status==='PLANNING'&&canManage" type="primary" @click="workVisible=true"><el-icon><Plus/></el-icon>工作项</el-button></div>
+          <el-table :data="workItems" row-key="workItemId" :tree-props="{children:'children'}">
+            <el-table-column prop="wbsCode" label="WBS" width="90"/><el-table-column label="工作项" min-width="240"><template #default="{row}"><strong>{{ row.title }}</strong><div class="sub">{{ row.description||'-' }}</div></template></el-table-column>
+            <el-table-column label="类型" width="100"><template #default="{row}">{{ itemType(row.itemType) }}</template></el-table-column><el-table-column prop="ownerName" label="负责人" width="90"/><el-table-column prop="plannedEndDate" label="计划结束" width="110"/>
+            <el-table-column label="进度" width="130"><template #default="{row}"><div class="inline-progress"><el-progress :percentage="row.progress||0" :show-text="false" :stroke-width="5"/><b>{{ row.progress||0 }}%</b></div></template></el-table-column>
+            <el-table-column label="状态" width="95"><template #default="{row}"><span class="mini-status">{{ workStatus(row.status) }}</span></template></el-table-column>
+            <el-table-column v-if="project.status==='ACTIVE'&&canManage" label="操作" width="145"><template #default="{row}"><el-button v-if="['NOT_STARTED','BLOCKED'].includes(row.status)" text type="primary" @click="doWork(row,'start')">开始</el-button><el-button v-if="['IN_PROGRESS','BLOCKED'].includes(row.status)" text type="success" @click="doWork(row,'complete')">完成</el-button><el-button v-if="row.status==='IN_PROGRESS'" text type="warning" @click="doWork(row,'block')">阻塞</el-button></template></el-table-column>
+          </el-table>
+          <el-empty v-if="!workItems.length" description="尚未建立项目计划"/>
         </el-tab-pane>
 
-        <el-tab-pane label="经费" name="budget">
-          <div class="tab-head"><div><h3>项目经费执行</h3><p>只跟踪项目预算使用，不替代财务报销系统。</p></div><el-button v-if="canExecute" type="primary" plain @click="expenseVisible=true"><el-icon><Plus /></el-icon> 记录支出</el-button></div>
-          <div class="budget-overview">
-            <div><span>项目总预算</span><strong>¥{{ money(project.totalBudget) }}</strong></div><div><span>已使用</span><strong>¥{{ money(project.usedBudget) }}</strong></div><div><span>剩余预算</span><strong>¥{{ money(project.remainingBudget) }}</strong></div><div><span>执行率</span><strong>{{ budgetRate }}%</strong></div>
+        <el-tab-pane label="执行" name="execution">
+          <div class="execution-grid">
+            <div class="section">
+              <div class="tab-head"><div><strong>进展报告</strong><span>月报、季度报告、中期检查统一记录。</span></div><el-button v-if="project.status==='ACTIVE'&&canManage" plain @click="reportVisible=true">提交报告</el-button></div>
+              <div class="report" v-for="r in reports" :key="r.reportId"><div><b>{{ reportType(r.reportType) }}</b><span>{{ r.reportNo }}</span><small>{{ r.submittedAt }}</small></div><strong>{{ r.overallProgress||0 }}%</strong><p>{{ r.completedWork||'-' }}</p></div><el-empty v-if="!reports.length" description="暂无进展报告" :image-size="45"/>
+            </div>
+            <div class="section">
+              <div class="tab-head"><div><strong>风险登记册</strong><span>风险是尚未发生的不确定事件。</span></div><el-button v-if="canManage" plain @click="riskVisible=true">新增风险</el-button></div>
+              <div class="governance-row" v-for="r in risks" :key="r.riskId"><span :class="['level',r.riskLevel?.toLowerCase()]">{{ r.riskLevel }}</span><div><b>{{ r.title }}</b><small>{{ r.status }} · Score {{ r.score }}</small></div><el-dropdown v-if="canManage" @command="cmd=>riskCommand(r,cmd)"><el-button text><el-icon><MoreFilled/></el-icon></el-button><template #dropdown><el-dropdown-menu><el-dropdown-item command="MONITORING">持续监控</el-dropdown-item><el-dropdown-item command="OCCUR">已发生→Issue</el-dropdown-item><el-dropdown-item command="CLOSED">关闭</el-dropdown-item></el-dropdown-menu></template></el-dropdown></div>
+              <el-empty v-if="!risks.length" description="暂无风险" :image-size="45"/>
+            </div>
+            <div class="section full">
+              <div class="tab-head"><div><strong>Issue Log</strong><span>已经发生、需要明确责任和解决结果的问题。</span></div><el-button v-if="canManage" plain @click="issueVisible=true">新增问题</el-button></div>
+              <el-table :data="issues"><el-table-column prop="issueNo" label="编号" width="90"/><el-table-column prop="title" label="问题" min-width="210"/><el-table-column prop="severity" label="严重度" width="90"/><el-table-column prop="ownerName" label="负责人" width="90"/><el-table-column prop="dueDate" label="目标解决" width="105"/><el-table-column label="状态" width="90"><template #default="{row}">{{ issueStatus(row.status) }}</template></el-table-column><el-table-column v-if="canManage" label="操作" width="150"><template #default="{row}"><el-button v-if="row.status==='OPEN'" text @click="issueAction(row,'IN_PROGRESS')">处理</el-button><el-button v-if="['OPEN','IN_PROGRESS'].includes(row.status)" text type="success" @click="issueAction(row,'RESOLVED')">解决</el-button><el-button v-if="row.status==='RESOLVED'" text @click="issueAction(row,'CLOSED')">关闭</el-button></template></el-table-column></el-table>
+            </div>
           </div>
-          <el-progress :percentage="budgetRate" :stroke-width="12" class="budget-progress" />
-          <div v-if="expenses.length" class="record-list">
-            <div v-for="e in expenses" :key="e.expenseId" class="record-row"><div class="record-icon"><el-icon><Wallet /></el-icon></div><div class="record-main"><strong>{{ e.expenseType }}</strong><span>{{ e.description || '无备注' }}</span></div><span class="record-date">{{ e.expenseDate }}</span><strong class="record-amount">- ¥{{ money(e.amount) }}</strong></div>
+        </el-tab-pane>
+
+        <el-tab-pane label="经费" name="finance">
+          <div class="tab-head"><div><strong>预算执行</strong><span>当前预算版本 V{{ budget?.versionNo||'-' }}，只管理项目预算，不替代财务系统。</span></div><el-button v-if="project.status==='ACTIVE'&&canManage" type="primary" plain @click="expenseVisible=true">记录支出</el-button></div>
+          <div class="finance-summary"><div><span>当前预算</span><strong>¥{{ money(project.currentBudget) }}</strong></div><div><span>已支出</span><strong>¥{{ money(usedBudget) }}</strong></div><div><span>剩余</span><strong>¥{{ money(Number(project.currentBudget||0)-usedBudget) }}</strong></div><div><span>执行率</span><strong>{{ budgetRate }}%</strong></div></div>
+          <el-table :data="budgetLines"><el-table-column prop="category" label="预算科目"/><el-table-column label="预算" width="140" align="right"><template #default="{row}">¥{{ money(row.plannedAmount) }}</template></el-table-column><el-table-column label="已使用" width="140" align="right"><template #default="{row}">¥{{ money(lineUsed(row.budgetLineId)) }}</template></el-table-column><el-table-column prop="description" label="说明" min-width="220"/></el-table>
+          <div class="subhead">支出记录</div><el-table :data="expenses"><el-table-column prop="expenseDate" label="日期" width="110"/><el-table-column prop="expenseNo" label="编号" width="135"/><el-table-column prop="category" label="科目" width="100"/><el-table-column prop="description" label="说明"/><el-table-column label="金额" width="140" align="right"><template #default="{row}">¥{{ money(row.amount) }}</template></el-table-column></el-table>
+        </el-tab-pane>
+
+        <el-tab-pane label="成果" name="outcomes">
+          <div class="tab-head"><div><strong>计划成果 vs 实际成果</strong><span>ExpectedOutput 来源于申报，Outcome 表达实际产出。</span></div><el-button v-if="['ACTIVE','CLOSING'].includes(project.status)&&canManage" type="primary" plain @click="outcomeVisible=true">登记成果</el-button></div>
+          <div class="outcome-grid"><div class="section"><div class="subhead">计划成果</div><div class="compact-list"><div v-for="o in expectedOutputs" :key="o.expectedOutputId"><span>{{ o.name||o.outputType }}</span><b>{{ o.targetQuantity }} 项</b><small>{{ o.targetDescription||'-' }}</small></div></div></div><div class="section"><div class="subhead">实际成果</div><div class="compact-list"><div v-for="o in outcomes" :key="o.outcomeId"><span>{{ o.name }}</span><b>{{ o.outcomeType }}</b><small>{{ o.completedDate||'-' }}</small></div></div><el-empty v-if="!outcomes.length" description="暂无实际成果" :image-size="45"/></div></div>
+        </el-tab-pane>
+
+        <el-tab-pane label="资料" name="documents">
+          <div class="tab-head"><div><strong>项目资料</strong><span>元数据归 ResearchFlow 管理，文件本体当前存本地 Volume。</span></div></div>
+          <div v-if="canManage" class="upload-bar"><ResearchDocumentUpload v-model="newDocs"/><el-select v-model="docCategory"><el-option label="通用资料" value="GENERAL"/><el-option label="进展报告" value="PROGRESS"/><el-option label="验收材料" value="ACCEPTANCE"/></el-select><el-button type="primary" :disabled="!newDocs.length" @click="saveDocs">保存资料</el-button></div>
+          <div class="documents"><a v-for="d in documents" :key="d.documentId" :href="baseUrl+d.storageKey" target="_blank"><el-icon><Document/></el-icon><div><strong>{{ d.fileName }}</strong><span>{{ d.category }} · V{{ d.versionNo }}</span></div><small>{{ d.uploadedAt }}</small></a></div><el-empty v-if="!documents.length" description="暂无项目资料"/>
+        </el-tab-pane>
+
+        <el-tab-pane label="变更" name="changes">
+          <div class="tab-head"><div><strong>Change Control</strong><span>执行中项目的周期、预算等基线变化必须留痕。</span></div><el-button v-if="project.status==='ACTIVE'&&canManage" type="primary" @click="changeVisible=true">发起变更</el-button></div>
+          <el-table :data="changes"><el-table-column prop="changeNo" label="编号" width="160"/><el-table-column prop="title" label="变更事项" min-width="220"/><el-table-column prop="applicantName" label="申请人" width="90"/><el-table-column label="影响" min-width="220"><template #default="{row}">{{ row.scheduleImpact||row.costImpact||'-' }}</template></el-table-column><el-table-column label="状态" width="100"><template #default="{row}">{{ changeStatus(row.status) }}</template></el-table-column><el-table-column v-if="canManage" label="操作" width="130"><template #default="{row}"><el-button v-if="row.status==='DRAFT'" text type="primary" @click="doSubmitChange(row)">提交</el-button><el-button v-if="row.status==='APPROVED'" text type="success" @click="doApplyChange(row)">应用变更</el-button></template></el-table-column></el-table>
+          <el-empty v-if="!changes.length" description="暂无变更记录"/>
+        </el-tab-pane>
+
+        <el-tab-pane label="流程" name="workflow">
+          <div class="workflow-grid">
+            <div class="section"><div class="subhead">流程审计</div><el-timeline v-if="workflow.length"><el-timeline-item v-for="w in workflow" :key="w.actionId" :timestamp="w.actedAt" placement="top"><div class="audit"><strong>{{ workflowText(w) }}</strong><span>{{ w.operatorName }} · {{ w.comment||'无备注' }}</span></div></el-timeline-item></el-timeline><el-empty v-else description="暂无流程记录" :image-size="45"/></div>
+            <div class="section"><div class="subhead">验收与结项</div><div v-if="acceptance" class="accept"><div><span>验收编号</span><strong>{{ acceptance.acceptanceNo }}</strong></div><div><span>状态</span><strong>{{ acceptanceText(acceptance.status) }}</strong></div><p>{{ acceptance.projectSummary }}</p><p v-if="acceptance.reviewComment"><b>意见：</b>{{ acceptance.reviewComment }}</p></div><div v-if="closeout" class="accept"><div><span>结项状态</span><strong>{{ closeout.status }}</strong></div><p>{{ closeout.conclusion||'等待完成归档检查。' }}</p></div><el-empty v-if="!acceptance" description="尚未提交验收" :image-size="45"/></div>
           </div>
-          <el-empty v-else description="暂无经费记录" />
-        </el-tab-pane>
-
-        <el-tab-pane :label="`成果 ${deliverables.length}`" name="deliverables">
-          <div class="tab-head"><div><h3>项目成果</h3><p>登记论文、专利、软件、数据集和技术报告等成果。</p></div><el-button v-if="canExecute" type="primary" plain @click="deliverableVisible=true"><el-icon><Plus /></el-icon> 登记成果</el-button></div>
-          <div v-if="deliverables.length" class="deliverable-grid"><div v-for="d in deliverables" :key="d.deliverableId" class="deliverable-card"><div class="deliverable-icon"><el-icon><DocumentChecked /></el-icon></div><div><span>{{ d.type }}</span><h4>{{ d.name }}</h4><p>{{ d.description || '暂无成果说明' }}</p><small>{{ d.completedDate }}</small></div></div></div>
-          <el-empty v-else description="暂无项目成果" />
-        </el-tab-pane>
-
-        <el-tab-pane label="流程记录" name="workflow">
-          <div class="tab-head"><div><h3>项目生命周期</h3><p>所有关键业务状态变化均保留操作记录。</p></div></div>
-          <el-timeline v-if="approvals.length" class="workflow-timeline">
-            <el-timeline-item v-for="a in approvals" :key="a.approvalId" :timestamp="a.createdAt" placement="top" :type="actionType(a.action)">
-              <div class="workflow-row"><div><strong>{{ actionText(a) }}</strong><p>{{ a.comment || '无补充意见' }}</p></div><span>{{ a.operatorName || '-' }}</span></div>
-            </el-timeline-item>
-          </el-timeline>
-          <el-empty v-else description="暂无流程记录" />
-          <div v-if="acceptance" class="acceptance-card"><div class="block-head"><h3>验收申请</h3><span :class="['acceptance-status',acceptance.status?.toLowerCase()]">{{ acceptanceStatus }}</span></div><p><strong>项目总结：</strong>{{ acceptance.projectSummary }}</p><p><strong>完成情况：</strong>{{ acceptance.completionStatement || '-' }}</p><p v-if="acceptance.unfinishedItems"><strong>未完成事项：</strong>{{ acceptance.unfinishedItems }}</p><p v-if="acceptance.reviewComment"><strong>验收意见：</strong>{{ acceptance.reviewComment }}</p></div>
         </el-tab-pane>
       </el-tabs>
     </section>
 
-    <el-dialog v-model="editVisible" title="编辑项目申报" width="720px">
-      <el-form :model="editForm" label-position="top"><el-form-item label="项目名称"><el-input v-model="editForm.projectName" /></el-form-item><el-form-item label="项目简介"><el-input v-model="editForm.summary" type="textarea" :rows="2" /></el-form-item><div class="dialog-grid"><el-form-item label="开始日期"><el-date-picker v-model="editForm.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="计划结束日期"><el-date-picker v-model="editForm.plannedEndDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></div><el-form-item label="项目预算"><el-input-number v-model="editForm.totalBudget" :min="0" style="width:100%" /></el-form-item><el-form-item label="研究目标"><el-input v-model="editForm.researchObjectives" type="textarea" :rows="3" /></el-form-item><el-form-item label="研究内容"><el-input v-model="editForm.researchContent" type="textarea" :rows="3" /></el-form-item><el-form-item label="预期成果"><el-input v-model="editForm.expectedDeliverables" type="textarea" :rows="2" /></el-form-item><el-form-item label="申报附件"><ResearchAttachmentUpload v-model="editForm.applicationAttachments" /></el-form-item></el-form>
-      <template #footer><el-button @click="editVisible=false">取消</el-button><el-button type="primary" @click="saveEdit">保存</el-button></template>
-    </el-dialog>
+    <el-dialog v-model="workVisible" title="新增工作项" width="560px"><el-form :model="workForm" label-position="top"><div class="grid2"><el-form-item label="类型"><el-select v-model="workForm.itemType"><el-option v-for="x in itemTypes" :key="x.value" :label="x.label" :value="x.value"/></el-select></el-form-item><el-form-item label="WBS编码"><el-input v-model="workForm.wbsCode"/></el-form-item></div><el-form-item label="名称"><el-input v-model="workForm.title"/></el-form-item><el-form-item label="说明"><el-input v-model="workForm.description" type="textarea" :rows="2"/></el-form-item><div class="grid2"><el-form-item label="计划开始"><el-date-picker v-model="workForm.plannedStartDate" value-format="YYYY-MM-DD" type="date"/></el-form-item><el-form-item label="计划结束"><el-date-picker v-model="workForm.plannedEndDate" value-format="YYYY-MM-DD" type="date"/></el-form-item></div></el-form><template #footer><el-button @click="workVisible=false">取消</el-button><el-button type="primary" @click="saveWork">保存</el-button></template></el-dialog>
 
-    <el-dialog v-model="milestoneVisible" title="添加里程碑" width="520px"><el-form :model="milestoneForm" label-position="top"><el-form-item label="里程碑名称"><el-input v-model="milestoneForm.title" /></el-form-item><el-form-item label="计划完成日期"><el-date-picker v-model="milestoneForm.dueDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="说明"><el-input v-model="milestoneForm.description" type="textarea" :rows="3" /></el-form-item></el-form><template #footer><el-button @click="milestoneVisible=false">取消</el-button><el-button type="primary" @click="saveMilestone">保存</el-button></template></el-dialog>
+    <el-dialog v-model="reportVisible" title="提交进展报告" width="620px"><el-form :model="reportForm" label-position="top"><div class="grid2"><el-form-item label="报告类型"><el-select v-model="reportForm.reportType"><el-option label="月报" value="MONTHLY"/><el-option label="季度报告" value="QUARTERLY"/><el-option label="中期检查" value="MIDTERM"/><el-option label="专项报告" value="AD_HOC"/></el-select></el-form-item><el-form-item label="整体进度"><el-input-number v-model="reportForm.overallProgress" :min="0" :max="100"/></el-form-item></div><el-form-item label="已完成工作"><el-input v-model="reportForm.completedWork" type="textarea" :rows="3"/></el-form-item><el-form-item label="问题与风险"><el-input v-model="reportForm.problems" type="textarea" :rows="2"/></el-form-item><el-form-item label="下一步计划"><el-input v-model="reportForm.nextPlan" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="reportVisible=false">取消</el-button><el-button type="primary" @click="saveReport">提交</el-button></template></el-dialog>
 
-    <el-dialog v-model="progressVisible" title="更新项目进展" width="620px"><el-form :model="progressForm" label-position="top"><el-form-item label="当前完成度"><el-slider v-model="progressForm.progressPercent" show-input /></el-form-item><el-form-item label="本阶段完成工作"><el-input v-model="progressForm.completedWork" type="textarea" :rows="3" /></el-form-item><el-form-item label="当前问题"><el-input v-model="progressForm.issues" type="textarea" :rows="2" /></el-form-item><el-form-item label="下一阶段计划"><el-input v-model="progressForm.nextPlan" type="textarea" :rows="2" /></el-form-item></el-form><template #footer><el-button @click="progressVisible=false">取消</el-button><el-button type="primary" @click="saveProgress">保存进展</el-button></template></el-dialog>
+    <el-dialog v-model="riskVisible" title="登记风险" width="560px"><el-form :model="riskForm" label-position="top"><el-form-item label="风险名称"><el-input v-model="riskForm.title"/></el-form-item><el-form-item label="描述"><el-input v-model="riskForm.description" type="textarea" :rows="2"/></el-form-item><div class="grid2"><el-form-item label="发生概率 1-5"><el-input-number v-model="riskForm.probability" :min="1" :max="5"/></el-form-item><el-form-item label="影响 1-5"><el-input-number v-model="riskForm.impact" :min="1" :max="5"/></el-form-item></div><el-form-item label="应对策略"><el-input v-model="riskForm.responseStrategy" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="riskVisible=false">取消</el-button><el-button type="primary" @click="saveRisk">保存</el-button></template></el-dialog>
 
-    <el-dialog v-model="expenseVisible" title="记录项目支出" width="520px"><el-form :model="expenseForm" label-position="top"><el-form-item label="支出类型"><el-select v-model="expenseForm.expenseType" style="width:100%"><el-option v-for="t in expenseTypes" :key="t" :label="t" :value="t" /></el-select></el-form-item><el-form-item label="支出金额（元）"><el-input-number v-model="expenseForm.amount" :min="0" :step="1000" style="width:100%" /></el-form-item><el-form-item label="支出日期"><el-date-picker v-model="expenseForm.expenseDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="说明"><el-input v-model="expenseForm.description" type="textarea" :rows="2" /></el-form-item></el-form><template #footer><el-button @click="expenseVisible=false">取消</el-button><el-button type="primary" @click="saveExpense">保存</el-button></template></el-dialog>
+    <el-dialog v-model="issueVisible" title="登记问题" width="540px"><el-form :model="issueForm" label-position="top"><el-form-item label="问题名称"><el-input v-model="issueForm.title"/></el-form-item><el-form-item label="描述"><el-input v-model="issueForm.description" type="textarea" :rows="2"/></el-form-item><div class="grid2"><el-form-item label="严重度"><el-select v-model="issueForm.severity"><el-option v-for="x in ['LOW','MEDIUM','HIGH','CRITICAL']" :key="x" :value="x"/></el-select></el-form-item><el-form-item label="目标解决"><el-date-picker v-model="issueForm.dueDate" value-format="YYYY-MM-DD" type="date"/></el-form-item></div></el-form><template #footer><el-button @click="issueVisible=false">取消</el-button><el-button type="primary" @click="saveIssue">保存</el-button></template></el-dialog>
 
-    <el-dialog v-model="deliverableVisible" title="登记项目成果" width="540px"><el-form :model="deliverableForm" label-position="top"><el-form-item label="成果名称"><el-input v-model="deliverableForm.name" /></el-form-item><el-form-item label="成果类型"><el-select v-model="deliverableForm.type" style="width:100%"><el-option v-for="t in deliverableTypes" :key="t" :label="t" :value="t" /></el-select></el-form-item><el-form-item label="完成日期"><el-date-picker v-model="deliverableForm.completedDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item><el-form-item label="成果说明"><el-input v-model="deliverableForm.description" type="textarea" :rows="3" /></el-form-item></el-form><template #footer><el-button @click="deliverableVisible=false">取消</el-button><el-button type="primary" @click="saveDeliverable">保存</el-button></template></el-dialog>
+    <el-dialog v-model="expenseVisible" title="记录支出" width="520px"><el-form :model="expenseForm" label-position="top"><el-form-item label="预算科目"><el-select v-model="expenseForm.budgetLineId"><el-option v-for="b in budgetLines" :key="b.budgetLineId" :label="b.category" :value="b.budgetLineId"/></el-select></el-form-item><div class="grid2"><el-form-item label="金额"><el-input-number v-model="expenseForm.amount" :min="0"/></el-form-item><el-form-item label="日期"><el-date-picker v-model="expenseForm.expenseDate" value-format="YYYY-MM-DD" type="date"/></el-form-item></div><el-form-item label="说明"><el-input v-model="expenseForm.description"/></el-form-item></el-form><template #footer><el-button @click="expenseVisible=false">取消</el-button><el-button type="primary" @click="saveExpense">保存</el-button></template></el-dialog>
 
-    <el-dialog v-model="acceptanceVisible" title="提交项目验收" width="650px"><el-form :model="acceptanceForm" label-position="top"><el-form-item label="项目总结"><el-input v-model="acceptanceForm.projectSummary" type="textarea" :rows="4" /></el-form-item><el-form-item label="任务完成情况"><el-input v-model="acceptanceForm.completionStatement" type="textarea" :rows="3" /></el-form-item><el-form-item label="未完成事项"><el-input v-model="acceptanceForm.unfinishedItems" type="textarea" :rows="2" /></el-form-item><el-form-item label="验收说明"><el-input v-model="acceptanceForm.acceptanceNote" type="textarea" :rows="2" /></el-form-item></el-form><template #footer><el-button @click="acceptanceVisible=false">取消</el-button><el-button type="success" @click="saveAcceptance">提交验收</el-button></template></el-dialog>
+    <el-dialog v-model="outcomeVisible" title="登记科研成果" width="540px"><el-form :model="outcomeForm" label-position="top"><div class="grid2"><el-form-item label="成果类型"><el-select v-model="outcomeForm.outcomeType"><el-option v-for="x in outcomeTypes" :key="x" :value="x"/></el-select></el-form-item><el-form-item label="对应计划成果"><el-select v-model="outcomeForm.expectedOutputId" clearable><el-option v-for="o in expectedOutputs" :key="o.expectedOutputId" :label="o.name||o.outputType" :value="o.expectedOutputId"/></el-select></el-form-item></div><el-form-item label="成果名称"><el-input v-model="outcomeForm.name"/></el-form-item><div class="grid2"><el-form-item label="完成日期"><el-date-picker v-model="outcomeForm.completedDate" value-format="YYYY-MM-DD" type="date"/></el-form-item><el-form-item label="外部引用"><el-input v-model="outcomeForm.externalReference"/></el-form-item></div><el-form-item label="说明"><el-input v-model="outcomeForm.description" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="outcomeVisible=false">取消</el-button><el-button type="primary" @click="saveOutcome">保存</el-button></template></el-dialog>
+
+    <el-dialog v-model="changeVisible" title="发起项目变更" width="620px"><el-form :model="changeForm" label-position="top"><el-form-item label="变更标题"><el-input v-model="changeForm.title"/></el-form-item><el-form-item label="原因"><el-input v-model="changeForm.reason" type="textarea" :rows="2"/></el-form-item><div class="grid2"><el-form-item label="变更字段"><el-select v-model="changeForm.fieldCode"><el-option label="计划结束日期" value="planned_end_date"/><el-option label="当前预算" value="current_budget"/></el-select></el-form-item><el-form-item label="变更后值"><el-input v-model="changeForm.afterValue"/></el-form-item></div><el-form-item label="影响分析"><el-input v-model="changeForm.scheduleImpact" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="changeVisible=false">取消</el-button><el-button type="primary" @click="saveChange">保存草稿</el-button></template></el-dialog>
+
+    <el-dialog v-model="acceptanceVisible" title="提交项目验收" width="620px"><el-form :model="acceptanceForm" label-position="top"><el-form-item label="项目总结"><el-input v-model="acceptanceForm.projectSummary" type="textarea" :rows="4"/></el-form-item><el-form-item label="任务完成情况"><el-input v-model="acceptanceForm.completionStatement" type="textarea" :rows="3"/></el-form-item><el-form-item label="未完成事项"><el-input v-model="acceptanceForm.outstandingItems" type="textarea" :rows="2"/></el-form-item></el-form><template #footer><el-button @click="acceptanceVisible=false">取消</el-button><el-button type="success" @click="saveAcceptance">提交验收</el-button></template></el-dialog>
   </div>
 </template>
 
 <script setup>
 import { h } from 'vue'
-import ResearchAttachmentUpload from '@/components/ResearchAttachmentUpload/index.vue'
+import ResearchDocumentUpload from '@/components/ResearchDocumentUpload/index.vue'
 import useUserStore from '@/store/modules/user'
-import { getResearchProject, updateResearchProject, submitResearchProject, approveResearchProject, rejectResearchProject, startResearchProject as startProjectApi, addResearchMilestone, completeResearchMilestone, addResearchProgress, addResearchExpense, addResearchDeliverable, submitResearchAcceptance, approveResearchAcceptance, rejectResearchAcceptance } from '@/api/research'
+import { getResearchProject,addWorkItem,workItemAction,activateProject,addProgressReport,addRisk,setRiskStatus,convertRiskToIssue,addIssue,setIssueStatus,addExpense,addOutcome,attachProjectDocument,createChange,submitChange,applyChange,submitAcceptance,reviewAcceptance,completeCloseout } from '@/api/research'
 
-const InfoBlock={props:['title','content'],setup(props){return()=>h('div',{class:'section-block'},[h('h3',props.title),h('p',{class:'long-copy'},props.content||'暂无内容')])}}
-const MetricLine={props:['label','value'],setup(props){return()=>h('div',{class:'metric-line'},[h('div',[h('span',props.label),h('strong',`${props.value||0}%`)]),h('div',{class:'metric-track'},h('div',{class:'metric-fill',style:{width:`${Math.min(100,props.value||0)}%`}}))])}}
+const Info={props:['title','text'],setup(p){return()=>h('div',{class:'box'},[h('div',{class:'box-head'},[h('strong',p.title)]),h('p',{class:'copy'},p.text||'暂无内容')])}}
+const route=useRoute(),router=useRouter(),userStore=useUserStore(),{proxy}=getCurrentInstance(),baseUrl=import.meta.env.VITE_APP_BASE_API
+const loading=ref(false),tab=ref('overview'),detail=reactive({project:{}})
+const project=computed(()=>detail.project||detail),members=computed(()=>detail.members||[]),baselines=computed(()=>detail.baselines||[]),workItems=computed(()=>detail.workItems||[]),reports=computed(()=>detail.progressReports||[]),risks=computed(()=>detail.risks||[]),issues=computed(()=>detail.issues||[]),changes=computed(()=>detail.changes||[]),budget=computed(()=>detail.budget),budgetLines=computed(()=>detail.budgetLines||[]),expenses=computed(()=>detail.expenses||[]),outcomes=computed(()=>detail.outcomes||[]),expectedOutputs=computed(()=>detail.expectedOutputs||[]),documents=computed(()=>detail.documents||[]),workflow=computed(()=>detail.workflow||[]),acceptance=computed(()=>detail.acceptance),closeout=computed(()=>detail.closeout)
+const currentBaseline=computed(()=>baselines.value[0]),usedBudget=computed(()=>expenses.value.reduce((a,b)=>a+Number(b.amount||0),0)),budgetRate=computed(()=>Number(project.value.currentBudget||0)?Math.min(100,Math.round(usedBudget.value*100/Number(project.value.currentBudget))):0)
+const openRisks=computed(()=>risks.value.filter(x=>x.status!=='CLOSED').length),openIssues=computed(()=>issues.value.filter(x=>!['RESOLVED','CLOSED'].includes(x.status)).length)
+const isAdmin=computed(()=>userStore.roles.some(r=>['admin','research_admin'].includes(r))),isMember=computed(()=>members.value.some(m=>Number(m.userId)===Number(userStore.id))),canManage=computed(()=>isAdmin.value||Number(project.value.piUserId)===Number(userStore.id)||isMember.value)
+const workVisible=ref(false),reportVisible=ref(false),riskVisible=ref(false),issueVisible=ref(false),expenseVisible=ref(false),outcomeVisible=ref(false),changeVisible=ref(false),acceptanceVisible=ref(false)
+const workForm=reactive({itemType:'TASK',wbsCode:'',title:'',description:'',plannedStartDate:'',plannedEndDate:'',priority:'MEDIUM',sortOrder:1})
+const reportForm=reactive({reportType:'QUARTERLY',overallProgress:0,completedWork:'',problems:'',nextPlan:''})
+const riskForm=reactive({title:'',description:'',category:'SCHEDULE',probability:3,impact:3,responseStrategy:''})
+const issueForm=reactive({title:'',description:'',severity:'MEDIUM',dueDate:''})
+const expenseForm=reactive({budgetLineId:null,amount:0,expenseDate:'',description:''})
+const outcomeForm=reactive({outcomeType:'REPORT',expectedOutputId:null,name:'',completedDate:'',description:'',externalReference:''})
+const changeForm=reactive({title:'',reason:'',fieldCode:'planned_end_date',afterValue:'',scheduleImpact:''})
+const acceptanceForm=reactive({projectSummary:'',completionStatement:'',outstandingItems:''})
+const newDocs=ref([]),docCategory=ref('GENERAL')
+const itemTypes=[['PHASE','阶段'],['WORK_PACKAGE','工作包'],['TASK','任务'],['MILESTONE','里程碑']].map(([value,label])=>({value,label})),outcomeTypes=['PAPER','PATENT','SOFTWARE','DATASET','STANDARD','REPORT','PROTOTYPE','OTHER']
 
-const route=useRoute(); const router=useRouter(); const userStore=useUserStore(); const {proxy}=getCurrentInstance(); const loading=ref(false); const activeTab=ref('overview')
-const detail=reactive({project:{},milestones:[],progressRecords:[],expenses:[],deliverables:[],approvals:[],acceptance:null})
-const project=computed(()=>detail.project||{}); const milestones=computed(()=>detail.milestones||[]); const progressRecords=computed(()=>detail.progressRecords||[]); const expenses=computed(()=>detail.expenses||[]); const deliverables=computed(()=>detail.deliverables||[]); const approvals=computed(()=>detail.approvals||[]); const acceptance=computed(()=>detail.acceptance)
-const isAdmin=computed(()=>userStore.roles.includes('admin')||userStore.roles.includes('research_admin')); const isResearchOwner=computed(()=>userStore.roles.includes('research_owner')); const isOwner=computed(()=>Number(userStore.id)===Number(project.value.ownerUserId)); const canApprove=isAdmin; const canOperate=computed(()=>isAdmin.value||(isResearchOwner.value&&isOwner.value)); const canEditDraft=computed(()=>canOperate.value&&['DRAFT','REJECTED'].includes(project.value.status)); const canSubmit=canEditDraft; const canExecute=computed(()=>canOperate.value&&project.value.status==='IN_PROGRESS'); const canSubmitAcceptance=canExecute
-const budgetRate=computed(()=>{const t=Number(project.value.totalBudget||0);return t?Math.min(100,Math.round(Number(project.value.usedBudget||0)*100/t)):0}); const completedMilestones=computed(()=>milestones.value.filter(m=>m.status==='COMPLETED').length); const nextMilestone=computed(()=>milestones.value.find(m=>m.status!=='COMPLETED'))
-const acceptanceStatus=computed(()=>({PENDING:'待验收',APPROVED:'已通过',REJECTED:'已退回'})[acceptance.value?.status]||acceptance.value?.status)
-
-const editVisible=ref(false), milestoneVisible=ref(false),progressVisible=ref(false),expenseVisible=ref(false),deliverableVisible=ref(false),acceptanceVisible=ref(false)
-const editForm=reactive({}); const milestoneForm=reactive({title:'',dueDate:'',description:''}); const progressForm=reactive({progressPercent:0,completedWork:'',issues:'',nextPlan:''}); const expenseForm=reactive({expenseType:'材料费',amount:0,expenseDate:'',description:''}); const deliverableForm=reactive({name:'',type:'技术报告',completedDate:'',description:''}); const acceptanceForm=reactive({projectSummary:'',completionStatement:'',unfinishedItems:'',acceptanceNote:''})
-const expenseTypes=['设备费','材料费','人员费','测试费','差旅费','其他']; const deliverableTypes=['论文','专利','软件','数据集','技术报告','标准','其他']
-async function load(){loading.value=true;try{const res=await getResearchProject(route.params.projectId);Object.assign(detail,res.data||{})}finally{loading.value=false}}
-function openEdit(){Object.assign(editForm,JSON.parse(JSON.stringify(project.value)));editVisible.value=true}
-async function saveEdit(){await updateResearchProject(project.value.projectId,editForm);proxy.$modal.msgSuccess('申报信息已更新');editVisible.value=false;load()}
-async function submitProject(){await proxy.$modal.confirm('确认提交项目申报吗？提交后将进入审批流程。');await submitResearchProject(project.value.projectId);proxy.$modal.msgSuccess('已提交审批');load()}
-async function ask(title,msg){try{const {value}=await ElMessageBox.prompt(msg,title,{confirmButtonText:'确认',cancelButtonText:'取消',inputType:'textarea'});return value||''}catch{return null}}
-async function approveProject(){const c=await ask('审批通过','填写审批意见（可选）');if(c===null)return;await approveResearchProject(project.value.projectId,c);proxy.$modal.msgSuccess('审批通过');load()}
-async function rejectProject(){const c=await ask('驳回项目','请输入驳回原因');if(c===null)return;await rejectResearchProject(project.value.projectId,c);proxy.$modal.msgSuccess('项目已驳回');load()}
-async function startProject(){await proxy.$modal.confirm('确认启动该项目并进入执行阶段吗？');await startProjectApi(project.value.projectId);proxy.$modal.msgSuccess('项目已启动');load()}
-async function saveMilestone(){if(!milestoneForm.title)return proxy.$modal.msgWarning('请输入里程碑名称');await addResearchMilestone(project.value.projectId,milestoneForm);milestoneVisible.value=false;Object.assign(milestoneForm,{title:'',dueDate:'',description:''});proxy.$modal.msgSuccess('里程碑已添加');load()}
-async function completeMilestone(m){await completeResearchMilestone(project.value.projectId,m.milestoneId);proxy.$modal.msgSuccess('里程碑已完成');load()}
-async function saveProgress(){await addResearchProgress(project.value.projectId,progressForm);progressVisible.value=false;Object.assign(progressForm,{progressPercent:project.value.progress||0,completedWork:'',issues:'',nextPlan:''});proxy.$modal.msgSuccess('进展已更新');load()}
-async function saveExpense(){await addResearchExpense(project.value.projectId,expenseForm);expenseVisible.value=false;Object.assign(expenseForm,{expenseType:'材料费',amount:0,expenseDate:'',description:''});proxy.$modal.msgSuccess('支出已记录');load()}
-async function saveDeliverable(){if(!deliverableForm.name)return proxy.$modal.msgWarning('请输入成果名称');await addResearchDeliverable(project.value.projectId,deliverableForm);deliverableVisible.value=false;Object.assign(deliverableForm,{name:'',type:'技术报告',completedDate:'',description:''});proxy.$modal.msgSuccess('成果已登记');load()}
-async function saveAcceptance(){if(!acceptanceForm.projectSummary)return proxy.$modal.msgWarning('请填写项目总结');await submitResearchAcceptance(project.value.projectId,acceptanceForm);acceptanceVisible.value=false;proxy.$modal.msgSuccess('验收申请已提交');load()}
-async function reviewAcceptance(approved){const c=await ask(approved?'验收通过':'退回整改',approved?'填写验收意见':'填写整改要求');if(c===null)return;if(approved)await approveResearchAcceptance(project.value.projectId,c);else await rejectResearchAcceptance(project.value.projectId,c);proxy.$modal.msgSuccess(approved?'项目已结项':'已退回整改');load()}
+async function load(){loading.value=true;try{const r=await getResearchProject(route.params.projectId);Object.keys(detail).forEach(k=>delete detail[k]);Object.assign(detail,r.data||{});if(!detail.project)detail.project={...r.data}}finally{loading.value=false}}
+async function activate(){await proxy.$modal.confirm('激活后将生成不可变 Baseline V1，计划变化需走变更流程。确认激活？');await activateProject(project.value.projectId);proxy.$modal.msgSuccess('项目已激活');load()}
+async function saveWork(){if(!workForm.title)return proxy.$modal.msgWarning('请输入工作项名称');await addWorkItem(project.value.projectId,workForm);workVisible.value=false;proxy.$modal.msgSuccess('工作项已添加');load()}
+async function doWork(row,action){await workItemAction(project.value.projectId,row.workItemId,action);load()}
+async function saveReport(){await addProgressReport(project.value.projectId,reportForm);reportVisible.value=false;proxy.$modal.msgSuccess('进展报告已提交');load()}
+async function saveRisk(){if(!riskForm.title)return;await addRisk(project.value.projectId,riskForm);riskVisible.value=false;load()}
+async function riskCommand(row,cmd){if(cmd==='OCCUR'){await convertRiskToIssue(project.value.projectId,row.riskId,{title:row.title,severity:row.riskLevel,ownerUserId:row.ownerUserId});proxy.$modal.msgSuccess('风险已转为 Issue')}else await setRiskStatus(project.value.projectId,row.riskId,cmd);load()}
+async function saveIssue(){if(!issueForm.title)return;await addIssue(project.value.projectId,issueForm);issueVisible.value=false;load()}
+async function issueAction(row,status){let resolution='';if(status==='RESOLVED'){try{const r=await ElMessageBox.prompt('填写解决结果','解决问题',{inputType:'textarea'});resolution=r.value||''}catch{return}}await setIssueStatus(project.value.projectId,row.issueId,status,{resolution});load()}
+async function saveExpense(){if(!expenseForm.amount||!expenseForm.expenseDate)return proxy.$modal.msgWarning('请填写金额和日期');await addExpense(project.value.projectId,expenseForm);expenseVisible.value=false;load()}
+async function saveOutcome(){if(!outcomeForm.name)return;await addOutcome(project.value.projectId,outcomeForm);outcomeVisible.value=false;load()}
+async function saveDocs(){for(const d of newDocs.value)await attachProjectDocument(project.value.projectId,{...d,category:docCategory.value});newDocs.value=[];proxy.$modal.msgSuccess('项目资料已保存');load()}
+async function saveChange(){if(!changeForm.title||!changeForm.reason||!changeForm.afterValue)return proxy.$modal.msgWarning('请填写完整变更内容');const before=changeForm.fieldCode==='planned_end_date'?project.value.plannedEndDate:project.value.currentBudget;const payload={title:changeForm.title,reason:changeForm.reason,scheduleImpact:changeForm.scheduleImpact,items:[{changeType:changeForm.fieldCode==='planned_end_date'?'SCHEDULE':'BUDGET',fieldCode:changeForm.fieldCode,beforeValue:String(before||''),afterValue:String(changeForm.afterValue),description:changeForm.title}]};await createChange(project.value.projectId,payload);changeVisible.value=false;proxy.$modal.msgSuccess('变更草稿已创建');load()}
+async function doSubmitChange(row){await submitChange(project.value.projectId,row.changeId);proxy.$modal.msgSuccess('变更已提交审批');load()}
+async function doApplyChange(row){await proxy.$modal.confirm('应用后将生成新的不可变 Baseline，确认继续？');await applyChange(project.value.projectId,row.changeId);proxy.$modal.msgSuccess('变更已应用并生成新基线');load()}
+async function saveAcceptance(){if(!acceptanceForm.projectSummary)return proxy.$modal.msgWarning('请填写项目总结');await submitAcceptance(project.value.projectId,acceptanceForm);acceptanceVisible.value=false;proxy.$modal.msgSuccess('验收已提交');load()}
+async function reviewAccept(ok){let c='';try{const r=await ElMessageBox.prompt(ok?'填写验收意见':'填写退回要求',ok?'验收通过':'退回验收',{inputType:'textarea'});c=r.value||''}catch{return}await reviewAcceptance(project.value.projectId,ok?'approve':'return',c);load()}
+async function finishCloseout(){await proxy.$modal.confirm('确认最终报告、经费、成果、资料和归档均已完成？');await completeCloseout(project.value.projectId,{conclusion:'验收完成，结项资料已确认并归档。'});proxy.$modal.msgSuccess('项目已正式结项');load()}
+function lineUsed(id){return expenses.value.filter(e=>Number(e.budgetLineId)===Number(id)).reduce((a,b)=>a+Number(b.amount||0),0)}
 function money(v){return Number(v||0).toLocaleString('zh-CN',{maximumFractionDigits:2})}
-function statusText(s){return ({DRAFT:'草稿',PENDING_APPROVAL:'待审批',APPROVED:'已立项',IN_PROGRESS:'执行中',PENDING_ACCEPTANCE:'待验收',COMPLETED:'已结项',REJECTED:'已驳回',TERMINATED:'已终止'})[s]||s}
-function milestoneStatus(m){if(m.status==='COMPLETED')return '已完成';if(m.dueDate&&new Date(m.dueDate)<new Date())return '已延期';return '待完成'}
-function actionText(a){const map={SUBMIT:'提交',APPROVE:'审批通过',REJECT:'退回',START:'项目启动'};const prefix=a.businessType==='PROJECT_ACCEPTANCE'?'项目验收':a.businessType==='PROJECT_EXECUTION'?'项目执行':'项目申报';return `${prefix} · ${map[a.action]||a.action}`}
-function actionType(a){return a.action==='APPROVE'||a.action==='START'?'success':a.action==='REJECT'?'danger':'primary'}
-onMounted(()=>{load();progressForm.progressPercent=0})
+function statusText(s){return ({PLANNING:'计划中',ACTIVE:'执行中',SUSPENDED:'暂停',CLOSING:'结项中',CLOSED:'已结项',TERMINATED:'终止'})[s]||s}
+function tone(s){return s==='ACTIVE'||s==='CLOSED'?'success':s==='PLANNING'||s==='CLOSING'?'warning':s==='TERMINATED'?'danger':'neutral'}
+function itemType(s){return ({PHASE:'阶段',WORK_PACKAGE:'工作包',TASK:'任务',MILESTONE:'里程碑'})[s]||s}
+function workStatus(s){return ({NOT_STARTED:'未开始',IN_PROGRESS:'进行中',BLOCKED:'阻塞',DONE:'完成',CANCELLED:'取消'})[s]||s}
+function reportType(s){return ({MONTHLY:'月报',QUARTERLY:'季度报告',ANNUAL:'年度报告',MIDTERM:'中期检查',AD_HOC:'专项报告'})[s]||s}
+function roleText(s){return ({PI:'PI',PROJECT_MANAGER:'项目经理',RESEARCHER:'研究人员',FINANCE_CONTACT:'财务接口',SPONSOR:'Sponsor',MEMBER:'成员'})[s]||s}
+function issueStatus(s){return ({OPEN:'开放',IN_PROGRESS:'处理中',RESOLVED:'已解决',CLOSED:'已关闭'})[s]||s}
+function changeStatus(s){return ({DRAFT:'草稿',SUBMITTED:'待审批',APPROVED:'已批准待应用',REJECTED:'已拒绝',APPLIED:'已应用'})[s]||s}
+function acceptanceText(s){return ({DRAFT:'草稿',SUBMITTED:'待验收',RETURNED:'已退回',APPROVED:'已通过'})[s]||s}
+function workflowText(w){const type={PROPOSAL:'项目申报',CHANGE_REQUEST:'项目变更',ACCEPTANCE:'项目验收'}[w.businessType]||w.businessType;const act={SUBMIT:'提交',APPROVE:'批准',REJECT:'拒绝',RETURN:'退回'}[w.action]||w.action;return type+' · '+act}
+onMounted(load)
 </script>
 
 <style scoped lang="scss">
-.workspace { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-
-.project-hero {
-  overflow: hidden;
-  border: 1px solid var(--rf-border);
-  border-radius: var(--rf-radius-lg);
-  background: var(--rf-surface);
-  color: var(--rf-text);
-  box-shadow: var(--rf-shadow-sm);
-}
-.hero-top {
-  min-height: 62px;
-  padding: 9px 20px;
-  border-bottom: 1px solid var(--rf-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.hero-top :deep(.el-button.is-text) { color: var(--rf-text-secondary); }
-.hero-top :deep(.el-button.is-text:hover) { color: var(--rf-primary); background: var(--rf-primary-soft); }
-.hero-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-
-.hero-body {
-  padding: 24px 26px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 128px;
-  gap: 28px;
-  align-items: center;
-}
-.hero-body > div:first-child { min-width: 0; }
-.hero-kicker { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; color: var(--rf-text-muted); font-size: 12px; font-weight: 550; }
-.status-pill {
-  min-height: 26px;
-  padding: 0 9px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--rf-surface-subtle);
-  color: var(--rf-text-secondary);
-  font-size: 12px;
-  font-weight: 650;
-}
-.status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--rf-text-muted); }
-.status-pill.in_progress { background: var(--rf-primary-soft); color: var(--rf-primary-hover); }
-.status-pill.in_progress::before { background: var(--rf-primary); }
-.status-pill.pending_approval,
-.status-pill.pending_acceptance { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.status-pill.pending_approval::before,
-.status-pill.pending_acceptance::before { background: var(--rf-warning); }
-.status-pill.completed { background: var(--rf-success-soft); color: var(--rf-success); }
-.status-pill.completed::before { background: var(--rf-success); }
-.status-pill.rejected,
-.status-pill.terminated { background: var(--rf-danger-soft); color: var(--rf-danger); }
-.status-pill.rejected::before,
-.status-pill.terminated::before { background: var(--rf-danger); }
-
-.hero-body h1 {
-  margin: 9px 0 7px;
-  color: var(--rf-text);
-  font-size: clamp(22px, 2.1vw, 28px);
-  font-weight: 730;
-  line-height: 1.35;
-  letter-spacing: -.5px;
-  overflow-wrap: anywhere;
-}
-.hero-body p { max-width: 820px; margin: 0; color: var(--rf-text-secondary); font-size: 13px; line-height: 1.65; }
-
-.hero-progress {
-  min-height: 100px;
-  padding: 14px;
-  border: 1px solid var(--rf-primary-border);
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  background: var(--rf-primary-soft);
-  text-align: center;
-}
-.progress-number { line-height: 1; }
-.progress-number strong { color: var(--rf-primary-hover); font-size: 34px; font-weight: 760; font-variant-numeric: tabular-nums; }
-.progress-number span { color: var(--rf-primary); font-size: 14px; }
-.hero-progress > span { margin-top: 7px; color: var(--rf-text-muted); font-size: 12px; }
-
-.hero-meta {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--rf-border);
-  background: var(--rf-surface-subtle);
-}
-.hero-meta > div {
-  min-width: 0;
-  padding: 14px 20px;
-  border-right: 1px solid var(--rf-border);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.hero-meta > div:last-child { border-right: 0; }
-.hero-meta span { color: var(--rf-text-muted); font-size: 12px; }
-.hero-meta strong { overflow-wrap: anywhere; color: var(--rf-text-secondary); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
-
-.risk-banner {
-  min-height: 66px;
-  padding: 13px 16px;
-  border: 1px solid color-mix(in srgb, var(--rf-warning) 24%, var(--rf-border));
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--rf-warning-soft);
-  color: var(--rf-warning);
-}
-.risk-banner.high { border-color: color-mix(in srgb, var(--rf-danger) 24%, var(--rf-border)); background: var(--rf-danger-soft); color: var(--rf-danger); }
-.risk-banner > .el-icon { flex: 0 0 auto; font-size: 22px; }
-.risk-banner div { min-width: 0; flex: 1; }
-.risk-banner strong { color: var(--rf-text); font-size: 13px; }
-.risk-banner p { margin: 4px 0 0; color: var(--rf-text-secondary); font-size: 12px; line-height: 1.5; }
-.risk-banner > span { min-height: 26px; padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; display: inline-flex; align-items: center; font-size: 11px; font-weight: 650; white-space: nowrap; }
-
-.workspace-panel {
-  min-width: 0;
-  padding: 0 22px 24px;
-  border: 1px solid var(--rf-border);
-  border-radius: var(--rf-radius-lg);
-  background: var(--rf-surface);
-  box-shadow: var(--rf-shadow-sm);
-}
-.workspace-tabs :deep(.el-tabs__header) {
-  margin-bottom: 22px;
-  background: var(--rf-surface);
-}
-.workspace-tabs :deep(.el-tabs__item) {
-  min-width: 72px;
-  height: 54px;
-  padding: 0 14px;
-  color: var(--rf-text-muted);
-  font-size: 13px;
-}
-.workspace-tabs :deep(.el-tabs__item.is-active) { color: var(--rf-primary); font-weight: 650; }
-.workspace-tabs :deep(.el-tabs__active-bar) { height: 3px; border-radius: 3px 3px 0 0; }
-.workspace-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--rf-border); }
-
-.overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
-.overview-main { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.overview-side { display: flex; flex-direction: column; gap: 12px; }
-.section-block, .health-card, .next-card {
-  padding: 17px;
-  border: 1px solid var(--rf-border);
-  border-radius: 12px;
-  background: var(--rf-surface);
-}
-.section-block h3, .block-head h3 { margin: 0; color: var(--rf-text); font-size: 14px; font-weight: 680; }
-.long-copy {
-  margin: 9px 0 0;
-  color: var(--rf-text-secondary);
-  font-size: 13px;
-  line-height: 1.75;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.attachment-hint { color: var(--rf-text-muted); font-size: 11px; line-height: 1.5; text-align: right; }
-
-.latest-progress { margin-top: 12px; padding: 14px; border-radius: 10px; background: var(--rf-surface-subtle); }
-.progress-date { margin-bottom: 5px; color: var(--rf-text-muted); font-size: 12px; }
-.latest-progress > strong { color: var(--rf-text); font-size: 13px; }
-.latest-progress p { margin: 7px 0 0; color: var(--rf-text-secondary); font-size: 13px; line-height: 1.65; }
-.issue-line { margin-top: 10px; padding: 9px 10px; border-radius: 8px; display: flex; gap: 7px; align-items: flex-start; background: var(--rf-warning-soft); color: var(--rf-warning); font-size: 12px; line-height: 1.5; }
-
-.health-tag, .acceptance-status, .milestone-status {
-  min-height: 25px;
-  padding: 0 8px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 650;
-}
-.health-tag { background: var(--rf-success-soft); color: var(--rf-success); }
-.health-tag.medium { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.health-tag.high { background: var(--rf-danger-soft); color: var(--rf-danger); }
-
-.metric-line { margin-top: 17px; }
-.metric-line > div:first-child { display: flex; justify-content: space-between; gap: 12px; color: var(--rf-text-muted); font-size: 12px; }
-.metric-line strong { color: var(--rf-text-secondary); font-variant-numeric: tabular-nums; }
-.metric-track { height: 7px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: var(--rf-border); }
-.metric-fill { height: 100%; border-radius: 999px; background: var(--rf-primary); }
-.mini-stat { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--rf-border); display: flex; justify-content: space-between; color: var(--rf-text-secondary); font-size: 12px; }
-.mini-stat span { color: var(--rf-text-muted); }
-
-.next-card { background: var(--rf-surface-subtle); }
-.next-card > span { color: var(--rf-text-muted); font-size: 12px; }
-.next-card strong { display: block; margin-top: 7px; color: var(--rf-text); font-size: 13px; line-height: 1.5; }
-.next-card p { margin: 5px 0 0; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-
-.tab-head { margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.tab-head h3 { margin: 0; color: var(--rf-text); font-size: 15px; font-weight: 700; }
-.tab-head p { margin: 5px 0 0; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-
-.milestone-list { display: flex; flex-direction: column; }
-.milestone-item {
-  min-height: 78px;
-  padding: 14px 4px;
-  border-top: 1px solid var(--rf-border);
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 130px auto;
-  gap: 14px;
-  align-items: center;
-}
-.milestone-item:first-child { border-top: 0; }
-.milestone-index { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--rf-primary-soft); color: var(--rf-primary); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.milestone-main { min-width: 0; }
-.milestone-main > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.milestone-main strong { color: var(--rf-text); font-size: 13px; }
-.milestone-main p { margin: 5px 0 0; color: var(--rf-text-muted); font-size: 12px; line-height: 1.5; }
-.milestone-status { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.milestone-status.completed { background: var(--rf-success-soft); color: var(--rf-success); }
-.milestone-date { display: flex; flex-direction: column; gap: 4px; }
-.milestone-date span { color: var(--rf-text-muted); font-size: 12px; }
-.milestone-date strong { color: var(--rf-text-secondary); font-size: 12px; font-variant-numeric: tabular-nums; }
-
-.progress-timeline, .workflow-timeline { padding: 6px 4px; }
-.timeline-card {
-  padding: 15px;
-  border: 1px solid var(--rf-border);
-  border-radius: 12px;
-  background: var(--rf-surface);
-}
-.timeline-head { display: flex; justify-content: space-between; gap: 12px; }
-.timeline-head strong { color: var(--rf-text); font-size: 13px; }
-.timeline-head span { color: var(--rf-text-muted); font-size: 12px; }
-.timeline-card h5 { margin: 13px 0 5px; color: var(--rf-text-muted); font-size: 12px; font-weight: 650; }
-.timeline-card p { margin: 0; color: var(--rf-text-secondary); font-size: 13px; line-height: 1.6; }
-.timeline-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-
-.budget-overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.budget-overview > div { padding: 14px; border: 1px solid var(--rf-border); border-radius: 10px; background: var(--rf-surface-subtle); }
-.budget-overview span { display: block; color: var(--rf-text-muted); font-size: 12px; }
-.budget-overview strong { display: block; margin-top: 6px; color: var(--rf-text); font-size: 17px; font-variant-numeric: tabular-nums; }
-.budget-progress { margin: 18px 0; }
-
-.record-list { border-top: 1px solid var(--rf-border); }
-.record-row { min-height: 66px; padding: 12px 2px; border-bottom: 1px solid var(--rf-border); display: grid; grid-template-columns: 40px minmax(0, 1fr) 110px 130px; gap: 12px; align-items: center; }
-.record-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--rf-primary-soft); color: var(--rf-primary); }
-.record-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.record-main strong { color: var(--rf-text); font-size: 13px; }
-.record-main span, .record-date { color: var(--rf-text-muted); font-size: 12px; line-height: 1.45; }
-.record-amount { color: var(--rf-text-secondary); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
-
-.deliverable-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.deliverable-card { min-width: 0; padding: 15px; border: 1px solid var(--rf-border); border-radius: 12px; display: flex; gap: 12px; background: var(--rf-surface); }
-.deliverable-icon { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 10px; display: grid; place-items: center; background: var(--rf-success-soft); color: var(--rf-success); font-size: 18px; }
-.deliverable-card > div:last-child { min-width: 0; }
-.deliverable-card span { color: var(--rf-success); font-size: 12px; font-weight: 650; }
-.deliverable-card h4 { margin: 4px 0; color: var(--rf-text); font-size: 13px; overflow-wrap: anywhere; }
-.deliverable-card p { margin: 0; color: var(--rf-text-secondary); font-size: 12px; line-height: 1.55; }
-.deliverable-card small { display: block; margin-top: 8px; color: var(--rf-text-muted); font-size: 11px; }
-
-.workflow-row { padding: 13px 14px; border: 1px solid var(--rf-border); border-radius: 10px; display: flex; justify-content: space-between; gap: 16px; background: var(--rf-surface); }
-.workflow-row strong { color: var(--rf-text); font-size: 13px; }
-.workflow-row p { margin: 5px 0 0; color: var(--rf-text-secondary); font-size: 12px; line-height: 1.5; }
-.workflow-row > span { color: var(--rf-text-muted); font-size: 12px; white-space: nowrap; }
-
-.acceptance-card { margin-top: 18px; padding: 17px; border: 1px solid var(--rf-border); border-radius: 12px; background: var(--rf-surface-subtle); }
-.acceptance-card > p { margin: 9px 0 0; color: var(--rf-text-secondary); font-size: 12px; line-height: 1.65; }
-.acceptance-status { background: var(--rf-warning-soft); color: var(--rf-warning); }
-.acceptance-status.approved { background: var(--rf-success-soft); color: var(--rf-success); }
-.acceptance-status.rejected { background: var(--rf-danger-soft); color: var(--rf-danger); }
-
-.dialog-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-:deep(.el-dialog) { max-width: calc(100vw - 32px); }
-
-@media (max-width: 1050px) {
-  .overview-grid { grid-template-columns: 1fr; }
-  .overview-side { display: grid; grid-template-columns: 1fr 1fr; }
-  .hero-meta { grid-template-columns: repeat(2, 1fr); }
-  .hero-meta > div:nth-child(2) { border-right: 0; }
-  .hero-meta > div:nth-child(-n+2) { border-bottom: 1px solid var(--rf-border); }
-  .milestone-item { grid-template-columns: 46px minmax(0, 1fr); }
-  .milestone-date, .milestone-item > .el-button { grid-column: 2; }
-  .budget-overview { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 720px) {
-  .hero-top { padding: 10px 14px; align-items: flex-start; flex-direction: column; }
-  .hero-actions { width: 100%; justify-content: flex-start; }
-  .hero-body { padding: 18px; grid-template-columns: 1fr; }
-  .hero-progress { width: 100%; min-height: 82px; grid-template-columns: auto auto; gap: 8px; justify-content: start; place-items: center start; }
-  .hero-progress > span { margin-top: 0; }
-  .hero-meta { grid-template-columns: 1fr; }
-  .hero-meta > div { border-right: 0; border-bottom: 1px solid var(--rf-border); }
-  .hero-meta > div:last-child { border-bottom: 0; }
-  .risk-banner { align-items: flex-start; }
-  .risk-banner > span { display: none; }
-  .workspace-panel { padding: 0 14px 18px; }
-  .workspace-tabs :deep(.el-tabs__nav-wrap) { overflow-x: auto; }
-  .workspace-tabs :deep(.el-tabs__nav-scroll) { overflow: visible; }
-  .overview-side { display: flex; }
-  .tab-head { align-items: stretch; flex-direction: column; }
-  .tab-head .el-button { align-self: flex-start; }
-  .budget-overview, .deliverable-grid, .timeline-grid { grid-template-columns: 1fr; }
-  .record-row { grid-template-columns: 40px minmax(0, 1fr); }
-  .record-date, .record-amount { grid-column: 2; text-align: left; }
-  .workflow-row { flex-direction: column; gap: 6px; }
-  .dialog-grid { grid-template-columns: 1fr; gap: 0; }
-}
+.workspace{display:flex;flex-direction:column;gap:10px}.project-head,.panel{border:1px solid var(--rf-border);border-radius:10px;background:var(--rf-surface);overflow:hidden}.topline{min-height:44px;padding:4px 10px;border-bottom:1px solid var(--rf-border);display:flex;align-items:center;justify-content:space-between}.actions{display:flex;gap:6px}.identity{padding:13px 16px;display:grid;grid-template-columns:1fr 90px;gap:16px;align-items:center}.kicker{display:flex;gap:8px;align-items:center;color:var(--rf-text-muted);font-size:10px}.identity h2{margin:5px 0 3px;font-size:20px;line-height:1.3}.identity p{margin:0;color:var(--rf-text-secondary);font-size:11px;line-height:1.5}.status{padding:3px 6px;border-radius:999px;background:var(--rf-surface-subtle)}.status.success{background:var(--rf-success-soft);color:var(--rf-success)}.status.warning{background:var(--rf-warning-soft);color:var(--rf-warning)}.status.danger{background:var(--rf-danger-soft);color:var(--rf-danger)}.progress{padding:10px;border-radius:9px;background:var(--rf-primary-soft);text-align:center}.progress strong{display:block;color:var(--rf-primary);font-size:24px}.progress span{font-size:9px;color:var(--rf-text-muted)}.meta{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--rf-border);background:var(--rf-surface-subtle)}.meta>div{padding:8px 12px;border-right:1px solid var(--rf-border);display:flex;flex-direction:column;gap:2px}.meta>div:last-child{border-right:0}.meta span{font-size:9px;color:var(--rf-text-muted)}.meta strong{font-size:11px}.panel{padding:0 12px 12px}.tabs :deep(.el-tabs__header){margin:0 0 10px}.tabs :deep(.el-tabs__item){height:44px;font-size:11px;padding:0 12px}.overview{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.7fr);gap:10px}.col,.side{display:flex;flex-direction:column;gap:8px}.box,.section{padding:10px 11px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface)}.box-head,.tab-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.box-head strong,.tab-head strong,.subhead{font-size:11px}.box-head span,.tab-head span{font-size:9px;color:var(--rf-text-muted)}.copy{margin:6px 0 0;color:var(--rf-text-secondary);font-size:11px;line-height:1.65;white-space:pre-wrap}.compact-list{margin-top:6px}.compact-list>div{min-height:34px;padding:5px 0;border-top:1px solid var(--rf-border);display:grid;grid-template-columns:minmax(120px,1fr) 100px minmax(140px,1.4fr);gap:8px;align-items:center}.compact-list>div:first-child{border-top:0}.compact-list span,.compact-list b,.compact-list small{font-size:10px}.compact-list small{color:var(--rf-text-muted)}.score-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.score-grid>div{padding:8px 9px;border:1px solid var(--rf-border);border-radius:8px;display:flex;justify-content:space-between;align-items:center}.score-grid span{font-size:9px;color:var(--rf-text-muted)}.score-grid strong{font-size:17px}.danger{color:var(--rf-danger)!important}.baseline{min-height:31px;border-top:1px solid var(--rf-border);display:grid;grid-template-columns:35px 90px 1fr;align-items:center;gap:6px}.baseline:first-of-type{margin-top:5px}.baseline b,.baseline span,.baseline small{font-size:9px}.baseline small{color:var(--rf-text-muted);text-align:right}.lifecycle{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}.lifecycle span{padding:4px 6px;border-radius:6px;background:var(--rf-surface-subtle);font-size:9px}.tab-head{min-height:42px;margin-bottom:7px}.tab-head>div{display:flex;flex-direction:column;gap:2px}.sub{margin-top:2px;color:var(--rf-text-muted);font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inline-progress{display:grid;grid-template-columns:1fr 28px;gap:5px;align-items:center}.inline-progress b,.mini-status{font-size:9px}.execution-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.execution-grid .full{grid-column:1/-1}.report{min-height:58px;padding:7px 0;border-top:1px solid var(--rf-border);display:grid;grid-template-columns:180px 50px 1fr;gap:8px;align-items:center}.report:first-of-type{border-top:0}.report>div{display:flex;flex-direction:column}.report b{font-size:10px}.report span,.report small{font-size:9px;color:var(--rf-text-muted)}.report>strong{font-size:15px}.report p{margin:0;color:var(--rf-text-secondary);font-size:10px}.governance-row{min-height:43px;padding:5px 0;border-top:1px solid var(--rf-border);display:grid;grid-template-columns:58px 1fr 32px;gap:7px;align-items:center}.governance-row:first-of-type{border-top:0}.governance-row div{display:flex;flex-direction:column}.governance-row b{font-size:10px}.governance-row small{font-size:9px;color:var(--rf-text-muted)}.level{justify-self:start;padding:3px 5px;border-radius:999px;background:var(--rf-surface-subtle);font-size:8px;font-weight:700}.level.medium{background:var(--rf-warning-soft);color:var(--rf-warning)}.level.high{background:var(--rf-danger-soft);color:var(--rf-danger)}.level.critical{background:var(--rf-danger);color:#fff}.finance-summary{margin-bottom:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.finance-summary>div{padding:8px 9px;border:1px solid var(--rf-border);border-radius:8px;display:flex;justify-content:space-between}.finance-summary span{font-size:9px;color:var(--rf-text-muted)}.finance-summary strong{font-size:12px}.subhead{margin:10px 0 6px;color:var(--rf-text-secondary)}.outcome-grid,.workflow-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.upload-bar{padding:9px;margin-bottom:8px;border:1px solid var(--rf-border);border-radius:8px;background:var(--rf-surface-subtle);display:grid;grid-template-columns:1fr 140px auto;gap:8px;align-items:start}.documents{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.documents a{padding:8px;border:1px solid var(--rf-border);border-radius:8px;display:grid;grid-template-columns:24px 1fr auto;gap:7px;align-items:center;color:inherit;text-decoration:none}.documents a div{display:flex;flex-direction:column}.documents strong{font-size:10px}.documents span,.documents small{font-size:9px;color:var(--rf-text-muted)}.audit{display:flex;flex-direction:column;gap:2px}.audit strong{font-size:10px}.audit span{font-size:9px;color:var(--rf-text-muted)}.accept{padding:8px;margin-top:6px;border:1px solid var(--rf-border);border-radius:8px}.accept>div{display:flex;justify-content:space-between;font-size:10px}.accept p{margin:6px 0 0;color:var(--rf-text-secondary);font-size:10px;line-height:1.5}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:900px){.overview,.execution-grid,.outcome-grid,.workflow-grid{grid-template-columns:1fr}.execution-grid .full{grid-column:auto}.meta{grid-template-columns:repeat(3,1fr)}.finance-summary{grid-template-columns:1fr 1fr}.upload-bar{grid-template-columns:1fr}.documents{grid-template-columns:1fr}}@media(max-width:600px){.identity{grid-template-columns:1fr}.progress{display:none}.meta{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.topline{align-items:flex-start}.actions{flex-wrap:wrap;justify-content:flex-end}}
 </style>
