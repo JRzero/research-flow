@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+archive
+docs
+openspec
+**/target
+ruoyi-ui/node_modules
+ruoyi-ui/dist
+node_modules
+*.log

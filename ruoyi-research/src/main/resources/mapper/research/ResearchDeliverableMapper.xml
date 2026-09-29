@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.research.mapper.ResearchDeliverableMapper">
+    <resultMap id="DeliverableResult" type="ResearchDeliverable">
+        <id property="deliverableId" column="deliverable_id"/>
+        <result property="projectId" column="project_id"/>
+        <result property="name" column="name"/>
+        <result property="type" column="type"/>
+        <result property="completedDate" column="completed_date"/>
+        <result property="description" column="description"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+    <select id="selectByProjectId" resultMap="DeliverableResult">
+        select * from research_deliverable where project_id=#{projectId} order by completed_date desc, deliverable_id desc
+    </select>
+    <insert id="insertDeliverable" parameterType="ResearchDeliverable" useGeneratedKeys="true" keyProperty="deliverableId">
+        insert into research_deliverable(project_id,name,type,completed_date,description,create_by,create_time)
+        values(#{projectId},#{name},#{type},#{completedDate},#{description},#{createBy},sysdate())
+    </insert>
+</mapper>

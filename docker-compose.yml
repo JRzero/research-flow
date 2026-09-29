@@ -1,0 +1,107 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: research-flow-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --init-connect=SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: research_flow
+      TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    ports:
+      - "13306:3306"
+    volumes:
+      - research_flow_mysql:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: research-flow-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - research_flow_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: research-flow-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: researchflow
+      MINIO_ROOT_PASSWORD: researchflow123
+      TZ: Asia/Shanghai
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - research_flow_minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: research-flow-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: research_flow
+      DB_USERNAME: root
+      DB_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: researchflow
+      MINIO_SECRET_KEY: researchflow123
+      MINIO_BUCKET: research-flow
+      DEEPSEEK_ENDPOINT: ${DEEPSEEK_ENDPOINT:-https://api.deepseek.com}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      RUOYI_PROFILE: /app/uploadPath
+      TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    ports:
+      - "18080:8080"
+    volumes:
+      - research_flow_uploads:/app/uploadPath
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ruoyi-ui/Dockerfile
+    container_name: research-flow-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8088:80"
+
+volumes:
+  research_flow_mysql:
+  research_flow_redis:
+  research_flow_minio:
+  research_flow_uploads:
