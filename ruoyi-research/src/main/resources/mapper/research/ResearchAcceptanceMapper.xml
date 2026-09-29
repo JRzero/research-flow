@@ -19,18 +19,50 @@
         <result property="updateBy" column="update_by"/>
         <result property="updateTime" column="update_time"/>
     </resultMap>
+
     <select id="selectByProjectId" resultMap="AcceptanceResult">
-        select a.*, u.nick_name reviewer_name from research_acceptance a
-        left join sys_user u on u.user_id=a.reviewer_id
-        where a.project_id=#{projectId} limit 1
+        select a.*, u.nick_name reviewer_name
+        from research_acceptance a
+        left join sys_user u on u.user_id = a.reviewer_id
+        where a.project_id = #{projectId}
+        limit 1
     </select>
+
     <insert id="insertAcceptance" parameterType="ResearchAcceptance" useGeneratedKeys="true" keyProperty="acceptanceId">
-        insert into research_acceptance(project_id,project_summary,completion_statement,unfinished_items,acceptance_note,status,submitted_at,create_by,create_time,update_time)
-        values(#{projectId},#{projectSummary},#{completionStatement},#{unfinishedItems},#{acceptanceNote},#{status},sysdate(),#{createBy},sysdate(),sysdate())
+        insert into research_acceptance(
+            project_id, project_summary, completion_statement, unfinished_items, acceptance_note,
+            status, submitted_at, create_by, create_time, update_time
+        )
+        values(
+            #{projectId}, #{projectSummary}, #{completionStatement}, #{unfinishedItems}, #{acceptanceNote},
+            #{status}, sysdate(), #{createBy}, sysdate(), sysdate()
+        )
     </insert>
+
+    <update id="resubmitAcceptance" parameterType="ResearchAcceptance">
+        update research_acceptance
+        set project_summary = #{projectSummary},
+            completion_statement = #{completionStatement},
+            unfinished_items = #{unfinishedItems},
+            acceptance_note = #{acceptanceNote},
+            reviewer_id = null,
+            review_comment = null,
+            status = #{status},
+            submitted_at = sysdate(),
+            reviewed_at = null,
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where project_id = #{projectId}
+    </update>
+
     <update id="updateAcceptanceReview" parameterType="ResearchAcceptance">
-        update research_acceptance set reviewer_id=#{reviewerId}, review_comment=#{reviewComment}, status=#{status},
-        reviewed_at=sysdate(), update_by=#{updateBy}, update_time=sysdate()
-        where project_id=#{projectId}
+        update research_acceptance
+        set reviewer_id = #{reviewerId},
+            review_comment = #{reviewComment},
+            status = #{status},
+            reviewed_at = sysdate(),
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where project_id = #{projectId}
     </update>
 </mapper>
