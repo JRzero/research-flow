@@ -4,7 +4,7 @@
 
     <aside class="research-sidebar" aria-label="ResearchFlow 主导航">
       <button class="brand" type="button" aria-label="返回科研项目工作台" @click="router.push('/research/dashboard')">
-        <div class="brand-mark" aria-hidden="true">R</div>
+        <img class="brand-mark" :src="brandMark" alt="" aria-hidden="true" />
         <div class="brand-copy">
           <div class="brand-name">ResearchFlow</div>
           <div class="brand-sub">科研项目管理</div>
@@ -70,6 +70,7 @@
 
 <script setup>
 import useUserStore from '@/store/modules/user'
+import brandMark from '@/assets/logo/researchflow-mark.svg'
 
 const router = useRouter()
 const route = useRoute()
@@ -161,14 +162,8 @@ function handleCommand(command) {
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(145deg, #2563eb, #38bdf8);
-  color: #fff;
-  font-size: 20px;
-  font-weight: 800;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, .24);
+  display: block;
+  filter: drop-shadow(0 8px 18px rgba(37, 99, 235, .22));
 }
 .brand-name { font-size: 16px; font-weight: 750; letter-spacing: .1px; }
 .brand-sub { margin-top: 3px; color: var(--rf-sidebar-muted); font-size: 12px; }
