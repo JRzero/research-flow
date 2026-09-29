@@ -139,6 +139,11 @@
 
   <insert id="insertBudget" parameterType="map" useGeneratedKeys="true" keyProperty="budgetId">insert into research_budget(project_id,baseline_id,version_no,total_amount,status,effective_at) values(#{projectId},#{baselineId},#{versionNo},#{totalAmount},'ACTIVE',now())</insert>
   <insert id="copyProposalBudgetToProject">insert into research_budget_line(budget_id,category,planned_amount,description) select #{budgetId},category,amount,description from research_proposal_budget_line where proposal_id=#{proposalId}</insert>
+  <insert id="copyBudgetLines">insert into research_budget_line(budget_id,category,planned_amount,description) select #{toBudgetId},category,planned_amount,description from research_budget_line where budget_id=#{fromBudgetId}</insert>
+  <insert id="insertBudgetLine" parameterType="map" useGeneratedKeys="true" keyProperty="budgetLineId">insert into research_budget_line(budget_id,category,planned_amount,description) values(#{budgetId},#{category},#{plannedAmount},#{description})</insert>
+  <update id="deactivateBudgets">update research_budget set status='SUPERSEDED' where project_id=#{projectId} and status='ACTIVE'</update>
+  <select id="nextBudgetVersion" resultType="int">select coalesce(max(version_no),0) from research_budget where project_id=#{projectId}</select>
+  <update id="updateBudgetBaseline">update research_budget set baseline_id=#{baselineId} where budget_id=#{budgetId}</update>
   <select id="selectCurrentBudget" resultType="map">select budget_id budgetId,project_id projectId,baseline_id baselineId,version_no versionNo,total_amount totalAmount,status,effective_at effectiveAt from research_budget where project_id=#{projectId} and status='ACTIVE' order by version_no desc limit 1</select>
   <select id="selectBudgetLines" resultType="map">select budget_line_id budgetLineId,budget_id budgetId,category,planned_amount plannedAmount,description from research_budget_line where budget_id=#{budgetId} order by budget_line_id</select>
   <insert id="insertExpense" parameterType="map" useGeneratedKeys="true" keyProperty="expenseId">insert into research_expense(project_id,budget_line_id,expense_no,expense_date,amount,description,reference_no,create_by) values(#{projectId},#{budgetLineId},#{expenseNo},#{expenseDate},#{amount},#{description},#{referenceNo},#{username})</insert>
