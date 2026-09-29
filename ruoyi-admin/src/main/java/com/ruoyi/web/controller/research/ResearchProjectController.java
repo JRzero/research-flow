@@ -71,6 +71,8 @@ public class ResearchProjectController extends BaseController {
     public AjaxResult riskOccur(@PathVariable Long id,@PathVariable Long riskId,@RequestBody(required=false)Map<String,Object> body){return success(service.convertRiskToIssue(id,riskId,body==null?Map.of():body,getUserId(),canManageAll(),getUsername()));}
     @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')") @PostMapping("/projects/{id}/issues")
     public AjaxResult issue(@PathVariable Long id,@RequestBody Map<String,Object> body){service.addIssue(id,body,getUserId(),canManageAll(),getUsername());return success();}
+    @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')") @PostMapping("/projects/{id}/decisions")
+    public AjaxResult decision(@PathVariable Long id,@RequestBody Map<String,Object> body){service.addDecision(id,body,getUserId(),canManageAll(),getUsername());return success();}
     @PreAuthorize("@ss.hasAnyRoles('research_owner,research_admin')") @PostMapping("/projects/{id}/issues/{issueId}/status/{status}")
     public AjaxResult issueStatus(@PathVariable Long id,@PathVariable Long issueId,@PathVariable String status,@RequestBody(required=false)Map<String,Object> body){service.updateIssueStatus(id,issueId,status,body==null?Map.of():body,getUserId(),canManageAll(),getUsername());return success();}
     @GetMapping("/governance") public AjaxResult governance(){return success(service.risksAndIssues(getUserId(),canViewAll()));}
@@ -93,7 +95,7 @@ public class ResearchProjectController extends BaseController {
     @PreAuthorize("@ss.hasRole('research_admin')") @PostMapping("/projects/{id}/closeout")
     public AjaxResult closeout(@PathVariable Long id,@RequestBody(required=false)Map<String,Object> body){service.completeCloseout(id,body==null?Map.of():body,getUserId(),getUsername());return success();}
 
-    @GetMapping("/approvals") public AjaxResult approvals(){return success(service.approvalCenter());}
+    @PreAuthorize("@ss.hasRole('research_admin')") @GetMapping("/approvals") public AjaxResult approvals(){return success(service.approvalCenter());}
     @PostMapping("/ai/proposal") public AjaxResult aiProposal(@RequestBody Map<String,String> body){return success(researchAiService.generateProposal(body==null?"":body.get("description")));}
 
     private boolean canViewAll(){return SecurityUtils.isAdmin()||SecurityUtils.hasRole("research_admin")||SecurityUtils.hasRole("research_manager");}
