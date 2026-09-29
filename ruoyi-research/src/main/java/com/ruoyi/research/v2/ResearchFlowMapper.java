@@ -23,6 +23,7 @@ public interface ResearchFlowMapper {
     List<Map<String,Object>> selectProposalBudget(Long proposalId);
     BigDecimal sumProposalBudget(Long proposalId);
     int insertExpectedOutput(Map<String,Object> data);
+    int deleteExpectedOutputs(Long proposalId);
     List<Map<String,Object>> selectExpectedOutputs(Long proposalId);
 
     int insertReview(Map<String,Object> data);
