@@ -122,10 +122,10 @@ springdoc:
     path: /swagger-ui.html
     tags-sorter: alpha
   group-configs:
-    - group: 'default'
-      display-name: '测试模块'
-      paths-to-match: '/**'
-      packages-to-scan: com.ruoyi.web.controller.tool
+    - group: 'research'
+      display-name: 'ResearchFlow API'
+      paths-to-match: '/research/**'
+      packages-to-scan: com.ruoyi.web.controller.research
 
 # 防盗链配置
 referer:
@@ -145,11 +145,6 @@ xss:
 
 # ResearchFlow project configuration
 research:
-  minio:
-    endpoint: ${MINIO_ENDPOINT:http://localhost:19000}
-    access-key: ${MINIO_ACCESS_KEY:researchflow}
-    secret-key: ${MINIO_SECRET_KEY:researchflow123}
-    bucket: ${MINIO_BUCKET:research-flow}
   deepseek:
     endpoint: ${DEEPSEEK_ENDPOINT:https://api.deepseek.com}
     api-key: ${DEEPSEEK_API_KEY:}
