@@ -78,6 +78,11 @@ public interface ResearchFlowMapper {
 
     int insertBudget(Map<String,Object> data);
     int copyProposalBudgetToProject(@Param("proposalId") Long proposalId,@Param("budgetId") Long budgetId);
+    int copyBudgetLines(@Param("fromBudgetId") Long fromBudgetId,@Param("toBudgetId") Long toBudgetId);
+    int insertBudgetLine(Map<String,Object> data);
+    int deactivateBudgets(Long projectId);
+    int nextBudgetVersion(Long projectId);
+    int updateBudgetBaseline(@Param("budgetId") Long budgetId,@Param("baselineId") Long baselineId);
     Map<String,Object> selectCurrentBudget(Long projectId);
     List<Map<String,Object>> selectBudgetLines(Long budgetId);
     int insertExpense(Map<String,Object> data);
