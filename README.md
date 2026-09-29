@@ -74,7 +74,6 @@ docker compose up -d --build
 - 产品端：http://localhost:8088
 - 后端 API：http://localhost:18080
 - Swagger：http://localhost:18080/swagger-ui.html
-- MinIO Console：http://localhost:19001
 
 如果之前启动过旧数据库卷，初始化 SQL 不会再次执行。需要全新演示库时：
 
@@ -133,11 +132,11 @@ REDIS_PORT=16379
 
 ### 前端
 
-要求 Node.js 20+。
+要求 Node.js 20+。当前仓库未提交 package-lock.json，因此本地开发使用 `npm install`。
 
 ```bash
 cd ruoyi-ui
-npm ci
+npm install
 npm run dev
 ```
 
