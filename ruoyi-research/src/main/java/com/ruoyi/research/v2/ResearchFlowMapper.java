@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface ResearchFlowMapper {
     List<Map<String,Object>> selectAssignableUsers(@Param("keyword") String keyword);
+    int isActiveUser(Long userId);
     int insertRecord(Map<String,Object> data);
     int updateRecordPhase(@Param("recordId") Long recordId,@Param("phase") String phase,@Param("status") String status);
     Map<String,Object> selectRecord(Long recordId);
