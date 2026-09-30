@@ -26,7 +26,7 @@ ResearchRecord
 - **Document 元数据模型**：Demo 使用本地文件存储，业务层不依赖 MinIO。
 - **AI Copilot**：AI 负责辅助整理、总结和解释，不直接改变权限、金额、审批和核心状态。
 
-详细范围见 [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md)，架构决策见 [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md)，实现规范见 [specs](./specs)。
+详细范围见 [PRODUCT_REQUIREMENTS.md](./PRODUCT_REQUIREMENTS.md)，架构决策见 [DESIGN_DECISIONS.md](./DESIGN_DECISIONS.md)，实现规范见 [specs](./specs)，最终 Demo 验收结果见 [ACCEPTANCE_REPORT.md](./ACCEPTANCE_REPORT.md)。
 
 ## 产品导航
 
