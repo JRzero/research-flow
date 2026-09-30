@@ -178,7 +178,9 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         award.put("approvedBudget",approvedBudget);
         award.put("approvedScope",value(approval,"approvedScope",p.get("projectScope")));
         award.put("approvedObjectives",value(approval,"approvedObjectives",p.get("objectives")));
-        award.put("approvedOutputs",s(approval,"approvedOutputs"));award.put("username",username);
+        List<Map<String,Object>> approvedOutputItems=mapper.selectExpectedOutputs(proposalId);
+        award.put("approvedOutputs",String.join("、",approvedOutputItems.stream().map(o->s(o,"name")+" × "+integer(o.get("targetQuantity"),1)).toList()));
+        award.put("username",username);
         mapper.insertAward(award);
         Map<String,Object> project=new LinkedHashMap<>();
         project.put("recordId",p.get("recordId"));project.put("proposalId",proposalId);project.put("awardId",award.get("awardId"));
