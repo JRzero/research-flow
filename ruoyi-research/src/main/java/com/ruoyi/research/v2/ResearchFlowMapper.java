@@ -95,6 +95,7 @@ public interface ResearchFlowMapper {
     List<Map<String,Object>> selectExpenses(Long projectId);
     BigDecimal sumExpenses(Long projectId);
     BigDecimal sumExpensesByBudgetLine(Long budgetLineId);
+    BigDecimal sumExpensesByCategory(@Param("projectId") Long projectId,@Param("category") String category);
 
     int insertOutcome(Map<String,Object> data);
     List<Map<String,Object>> selectOutcomes(Long projectId);
