@@ -1,9 +1,9 @@
 <template>
   <div class="page" v-loading="loading">
     <div class="overview">
-      <div><span>待评审申请</span><strong>{{ data.proposals?.length||0 }}</strong></div>
-      <div><span>待审批变更</span><strong>{{ data.changes?.length||0 }}</strong></div>
-      <div><span>待验收</span><strong>{{ data.acceptances?.length||0 }}</strong></div>
+      <div class="overview-item"><span>待评审申请</span><strong>{{ data.proposals?.length||0 }}</strong></div>
+      <div class="overview-item"><span>待审批变更</span><strong>{{ data.changes?.length||0 }}</strong></div>
+      <div class="overview-item"><span>待验收</span><strong>{{ data.acceptances?.length||0 }}</strong></div>
     </div>
 
     <div class="panel">
@@ -15,7 +15,7 @@
             <el-table-column prop="applicantName" label="申请人" width="100"/>
             <el-table-column label="申请预算" width="120" align="right"><template #default="{row}">¥{{ money(row.requestedBudget) }}</template></el-table-column>
             <el-table-column prop="submittedAt" label="提交时间" width="160"/>
-            <el-table-column label="操作" width="150" fixed="right"><template #default="{row}"><el-button text type="primary" @click="openAward(row)">批复</el-button><el-button text type="danger" @click="rejectProposalRow(row)">拒绝</el-button></template></el-table-column>
+            <el-table-column label="操作" width="118" fixed="right" align="center"><template #default="{row}"><div class="row-actions"><el-button text type="primary" @click="openAward(row)">批复</el-button><span class="action-divider"></span><el-button text type="danger" @click="rejectProposalRow(row)">拒绝</el-button></div></template></el-table-column>
           </el-table>
           <el-empty v-if="!data.proposals?.length" description="暂无待评审申请"/>
         </el-tab-pane>
@@ -26,7 +26,7 @@
             <el-table-column prop="projectName" label="项目" min-width="220"/>
             <el-table-column prop="title" label="变更事项" min-width="220"/>
             <el-table-column prop="applicantName" label="申请人" width="100"/>
-            <el-table-column label="操作" width="150" fixed="right"><template #default="{row}"><el-button text type="primary" @click="reviewChange(row,true)">批准</el-button><el-button text type="danger" @click="reviewChange(row,false)">拒绝</el-button></template></el-table-column>
+            <el-table-column label="操作" width="118" fixed="right" align="center"><template #default="{row}"><div class="row-actions"><el-button text type="primary" @click="reviewChange(row,true)">批准</el-button><span class="action-divider"></span><el-button text type="danger" @click="reviewChange(row,false)">拒绝</el-button></div></template></el-table-column>
           </el-table>
           <el-empty v-if="!data.changes?.length" description="暂无待审批变更"/>
         </el-tab-pane>
@@ -37,7 +37,7 @@
             <el-table-column prop="projectName" label="项目" min-width="260"/>
             <el-table-column prop="applicantName" label="申请人" width="100"/>
             <el-table-column prop="submittedAt" label="提交时间" width="160"/>
-            <el-table-column label="操作" width="170" fixed="right"><template #default="{row}"><el-button text type="success" @click="reviewAccept(row,true)">验收通过</el-button><el-button text type="danger" @click="reviewAccept(row,false)">退回</el-button></template></el-table-column>
+            <el-table-column label="操作" width="150" fixed="right" align="center"><template #default="{row}"><div class="row-actions"><el-button text type="success" @click="reviewAccept(row,true)">通过</el-button><span class="action-divider"></span><el-button text type="danger" @click="reviewAccept(row,false)">退回</el-button></div></template></el-table-column>
           </el-table>
           <el-empty v-if="!data.acceptances?.length" description="暂无待验收项目"/>
         </el-tab-pane>
@@ -113,5 +113,5 @@ onMounted(load)
 </script>
 
 <style scoped lang="scss">
-.page{display:flex;flex-direction:column;gap:8px}.overview{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.overview>div{padding:8px 10px;border:1px solid var(--rf-border);border-radius:8px;background:var(--rf-surface);display:flex;justify-content:space-between;align-items:center}.overview span{font-size:10px;color:var(--rf-text-muted)}.overview strong{font-size:18px}.panel{padding:0 10px 8px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface)}:deep(.el-tabs__header){margin-bottom:6px}:deep(.el-tabs__item){height:40px;font-size:11px}.award-note{margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--rf-primary-soft);color:var(--rf-text-secondary);font-size:11px;line-height:1.5}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.compare-line{margin:-2px 0 10px;padding:7px 10px;border:1px solid var(--rf-border);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-muted)}.compare-line strong{color:var(--rf-primary)}.field-tip{margin-top:4px;color:var(--rf-text-muted);font-size:10px;line-height:1.4}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.overview{grid-template-columns:1fr 1fr 1fr}.overview>div{align-items:flex-start;flex-direction:column}.overview strong{font-size:16px}}
+.page{display:flex;flex-direction:column;gap:8px}.overview{height:44px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface);display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}.overview-item{padding:0 12px;border-right:1px solid var(--rf-border);display:flex;justify-content:space-between;align-items:center}.overview-item:last-child{border-right:0}.overview span{font-size:10px;color:var(--rf-text-muted)}.overview strong{font-size:17px;line-height:1}.panel{padding:0 10px 8px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface)}:deep(.el-tabs__header){margin-bottom:6px}:deep(.el-tabs__item){height:40px;font-size:11px}:deep(.el-table th.el-table__cell){height:42px;padding:0}:deep(.el-table td.el-table__cell){padding:6px 0}.row-actions{display:inline-flex;align-items:center;justify-content:center;gap:0;white-space:nowrap}.row-actions :deep(.el-button){margin:0;padding:4px 7px;font-size:11px}.action-divider{width:1px;height:12px;background:var(--rf-border)}.award-note{margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--rf-primary-soft);color:var(--rf-text-secondary);font-size:11px;line-height:1.5}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.compare-line{margin:-2px 0 10px;padding:7px 10px;border:1px solid var(--rf-border);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-muted)}.compare-line strong{color:var(--rf-primary)}.field-tip{margin-top:4px;color:var(--rf-text-muted);font-size:10px;line-height:1.4}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.overview{height:auto;grid-template-columns:1fr}.overview-item{min-height:38px;border-right:0;border-bottom:1px solid var(--rf-border)}.overview-item:last-child{border-bottom:0}.overview strong{font-size:16px}}
 </style>
