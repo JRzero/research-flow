@@ -58,7 +58,7 @@
           <el-form-item label="批准范围"><el-input v-model="awardForm.approvedScope" type="textarea" :rows="3"/></el-form-item>
           <el-form-item label="批准目标"><el-input v-model="awardForm.approvedObjectives" type="textarea" :rows="3"/></el-form-item>
         </div>
-        <el-form-item label="批准成果"><el-input v-model="awardForm.approvedOutputs" type="textarea" :rows="2" placeholder="正式批复成果要求"/></el-form-item>
+        <el-form-item label="批准成果清单"><el-input v-model="awardForm.approvedOutputs" type="textarea" :rows="2" disabled/><div class="field-tip">量化成果清单在本次 Demo 中沿用已提交 ExpectedOutput，避免批复口径与后续验收口径不一致。</div></el-form-item>
         <el-form-item label="审批意见"><el-input v-model="awardForm.comment" type="textarea" :rows="2"/></el-form-item>
       </el-form>
       <template #footer><el-button @click="awardVisible=false">取消</el-button><el-button type="primary" :loading="approving" @click="confirmAward">批准并立项</el-button></template>
@@ -90,7 +90,7 @@ async function openAward(row){
     approvedBudget:Number(d.requestedBudget||0),
     approvedScope:d.projectScope||'',
     approvedObjectives:d.objectives||'',
-    approvedOutputs:(d.expectedOutputs||[]).map(o=>o.name||o.outputType).join('、'),
+    approvedOutputs:(d.expectedOutputs||[]).map(o=>(o.name||o.outputType)+' × '+(o.targetQuantity||1)).join('、'),
     comment:''
   })
   awardVisible.value=true
@@ -113,5 +113,5 @@ onMounted(load)
 </script>
 
 <style scoped lang="scss">
-.page{display:flex;flex-direction:column;gap:8px}.overview{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.overview>div{padding:8px 10px;border:1px solid var(--rf-border);border-radius:8px;background:var(--rf-surface);display:flex;justify-content:space-between;align-items:center}.overview span{font-size:10px;color:var(--rf-text-muted)}.overview strong{font-size:18px}.panel{padding:0 10px 8px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface)}:deep(.el-tabs__header){margin-bottom:6px}:deep(.el-tabs__item){height:40px;font-size:11px}.award-note{margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--rf-primary-soft);color:var(--rf-text-secondary);font-size:11px;line-height:1.5}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.compare-line{margin:-2px 0 10px;padding:7px 10px;border:1px solid var(--rf-border);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-muted)}.compare-line strong{color:var(--rf-primary)}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.overview{grid-template-columns:1fr 1fr 1fr}.overview>div{align-items:flex-start;flex-direction:column}.overview strong{font-size:16px}}
+.page{display:flex;flex-direction:column;gap:8px}.overview{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.overview>div{padding:8px 10px;border:1px solid var(--rf-border);border-radius:8px;background:var(--rf-surface);display:flex;justify-content:space-between;align-items:center}.overview span{font-size:10px;color:var(--rf-text-muted)}.overview strong{font-size:18px}.panel{padding:0 10px 8px;border:1px solid var(--rf-border);border-radius:9px;background:var(--rf-surface)}:deep(.el-tabs__header){margin-bottom:6px}:deep(.el-tabs__item){height:40px;font-size:11px}.award-note{margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--rf-primary-soft);color:var(--rf-text-secondary);font-size:11px;line-height:1.5}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.compare-line{margin:-2px 0 10px;padding:7px 10px;border:1px solid var(--rf-border);border-radius:8px;display:flex;align-items:center;gap:10px;background:var(--rf-surface-subtle);font-size:11px;color:var(--rf-text-muted)}.compare-line strong{color:var(--rf-primary)}.field-tip{margin-top:4px;color:var(--rf-text-muted);font-size:10px;line-height:1.4}@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}.overview{grid-template-columns:1fr 1fr 1fr}.overview>div{align-items:flex-start;flex-direction:column}.overview strong{font-size:16px}}
 </style>
