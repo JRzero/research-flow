@@ -71,6 +71,14 @@ jobs:
           mysql -h 127.0.0.1 -uroot research_flow < sql/ry_20260417.sql
           mysql -h 127.0.0.1 -uroot research_flow < sql/quartz.sql
           mysql -h 127.0.0.1 -uroot research_flow < sql/z_research_flow.sql
+          mysql -h 127.0.0.1 -uroot research_flow < sql/zz_20260930_remove_ruoyi_branding.sql
+      - name: Verify product branding cleanup
+        env:
+          MYSQL_PWD: password
+        run: |
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from sys_menu where menu_name like '%若依%' or path like '%ruoyi.vip%'")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from sys_notice where notice_title like '%若依%' or notice_content like '%若依%' or notice_content like '%RuoYi%' or notice_content like '%ruoyi.vip%'")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from sys_user where nick_name='若依' or user_name='ry'")" -eq 0
       - name: Verify V2 lifecycle seed
         env:
           MYSQL_PWD: password
