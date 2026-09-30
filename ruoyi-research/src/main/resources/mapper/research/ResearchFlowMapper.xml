@@ -10,6 +10,7 @@
     order by u.user_id
     limit 100
   </select>
+  <select id="isActiveUser" resultType="int">select count(*) from sys_user where user_id=#{userId} and status='0' and del_flag='0'</select>
 
   <insert id="insertRecord" parameterType="map" useGeneratedKeys="true" keyProperty="recordId">
     insert into research_record(record_no,title,owner_user_id,dept_id,create_by)
