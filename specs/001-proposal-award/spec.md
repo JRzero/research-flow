@@ -16,11 +16,12 @@ Create Proposal -> edit team / budget / expected outputs / documents -> validate
 - 至少一名 ProposalMember，创建人默认作为 PI。
 - requestedBudget > 0。
 - 至少一个预算明细，且预算明细合计必须等于 requestedBudget。
-- 至少一项 ExpectedOutput。
+- 至少一项 ExpectedOutput，target_quantity >= 1。
 - 申报附件当前为 warning，不作为阻断项。
 
 ## Award rules
-- approvedBudget > 0，批准周期不能为空。
-- approvedTitle / scope / objectives / dates / budget / outputs 可以与申请值不同。
+- approvedBudget > 0，批准周期不能为空，且结束日期不得早于开始日期。
+- approvedTitle / scope / objectives / dates / budget 可以与申请值不同。
+- 当前 Demo 将结构化 ExpectedOutput 作为量化验收口径，在 Award 签发时冻结；Award.approved_outputs 保存该清单摘要，不另维护一套可编辑的成果口径。
 - 批复预算与申报预算存在差额时，在正式项目 Budget V1 中增加“批复调整”行，使 BudgetLine 合计与 Award approvedBudget 一致。
 - Proposal 详情保留申请值，可用于申请值 vs 批准值审计。
