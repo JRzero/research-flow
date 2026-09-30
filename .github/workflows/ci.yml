@@ -79,6 +79,18 @@ jobs:
           test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_proposal where status='UNDER_REVIEW'")" -ge 1
           test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project where status='ACTIVE'")" -ge 1
           test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_baseline")" -ge 1
+      - name: Verify V2 domain invariants
+        env:
+          MYSQL_PWD: password
+        run: |
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project p join research_budget b on b.project_id=p.project_id and b.status='ACTIVE' where p.status in ('PLANNING','ACTIVE','CLOSING') and p.current_budget<>b.total_amount")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from (select b.budget_id,b.total_amount,coalesce(sum(l.planned_amount),0) line_total from research_budget b join research_project p on p.project_id=b.project_id left join research_budget_line l on l.budget_id=b.budget_id where b.status='ACTIVE' and p.status in ('PLANNING','ACTIVE','CLOSING') group by b.budget_id,b.total_amount having line_total<>b.total_amount) x")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_work_item w join research_work_item parent on parent.work_item_id=w.parent_id where w.project_id<>parent.project_id")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_work_item w join research_project p on p.project_id=w.project_id where w.item_type in ('TASK','MILESTONE') and (w.owner_user_id is null or (w.owner_user_id<>p.pi_user_id and not exists(select 1 from research_project_member pm where pm.project_id=w.project_id and pm.user_id=w.owner_user_id and pm.status='ACTIVE')))")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project p left join research_baseline b on b.baseline_id=p.current_baseline_id and b.project_id=p.project_id where p.current_baseline_id is not null and b.baseline_id is null")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project p where p.status in ('ACTIVE','CLOSING') and coalesce((select sum(e.amount) from research_expense e where e.project_id=p.project_id),0)>p.current_budget")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_project p left join research_acceptance a on a.project_id=p.project_id left join research_closeout c on c.project_id=p.project_id where p.status='CLOSED' and (a.status<>'APPROVED' or c.status<>'COMPLETED' or a.acceptance_id is null or c.closeout_id is null)")" -eq 0
+          test "$(mysql -N -h 127.0.0.1 -uroot research_flow -e "select count(*) from research_proposal p where p.status='UNDER_REVIEW' and not exists(select 1 from research_workflow_instance w where w.business_type='PROPOSAL' and w.business_id=p.proposal_id and w.status='RUNNING')")" -eq 0
 
   compose:
     name: Docker Compose config

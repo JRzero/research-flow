@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 
 public interface ResearchFlowMapper {
     List<Map<String,Object>> selectAssignableUsers(@Param("keyword") String keyword);
+    int isActiveUser(Long userId);
     int insertRecord(Map<String,Object> data);
     int updateRecordPhase(@Param("recordId") Long recordId,@Param("phase") String phase,@Param("status") String status);
     Map<String,Object> selectRecord(Long recordId);
@@ -95,6 +96,7 @@ public interface ResearchFlowMapper {
     List<Map<String,Object>> selectExpenses(Long projectId);
     BigDecimal sumExpenses(Long projectId);
     BigDecimal sumExpensesByBudgetLine(Long budgetLineId);
+    BigDecimal sumExpensesByCategory(@Param("projectId") Long projectId,@Param("category") String category);
 
     int insertOutcome(Map<String,Object> data);
     List<Map<String,Object>> selectOutcomes(Long projectId);

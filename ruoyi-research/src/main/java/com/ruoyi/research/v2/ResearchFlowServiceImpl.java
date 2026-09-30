@@ -171,11 +171,16 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         award.put("approvedEndDate",value(approval,"approvedEndDate",p.get("plannedEndDate")));
         BigDecimal approvedBudget=approval.get("approvedBudget")==null?money(p.get("requestedBudget")):money(approval.get("approvedBudget"));
         ResearchFlowRules.require(award.get("approvedStartDate")!=null&&award.get("approvedEndDate")!=null,"批复周期不能为空");
+        LocalDate awardStart=parseDate(award.get("approvedStartDate"),"批准开始日期格式不正确");
+        LocalDate awardEnd=parseDate(award.get("approvedEndDate"),"批准结束日期格式不正确");
+        ResearchFlowRules.require(!awardEnd.isBefore(awardStart),"批准结束日期不能早于开始日期");
         ResearchFlowRules.require(approvedBudget.compareTo(BigDecimal.ZERO)>0,"批复预算必须大于0");
         award.put("approvedBudget",approvedBudget);
         award.put("approvedScope",value(approval,"approvedScope",p.get("projectScope")));
         award.put("approvedObjectives",value(approval,"approvedObjectives",p.get("objectives")));
-        award.put("approvedOutputs",s(approval,"approvedOutputs"));award.put("username",username);
+        List<Map<String,Object>> approvedOutputItems=mapper.selectExpectedOutputs(proposalId);
+        award.put("approvedOutputs",String.join("、",approvedOutputItems.stream().map(o->s(o,"name")+" × "+integer(o.get("targetQuantity"),1)).toList()));
+        award.put("username",username);
         mapper.insertAward(award);
         Map<String,Object> project=new LinkedHashMap<>();
         project.put("recordId",p.get("recordId"));project.put("proposalId",proposalId);project.put("awardId",award.get("awardId"));
@@ -208,6 +213,7 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     @Override
     public void addProposalMember(Long proposalId,Map<String,Object> input,Long userId,boolean manageAll,String username){
         Map<String,Object> p=requiredProposal(proposalId);checkProposalOwner(p,userId,manageAll);ResearchFlowRules.require(ResearchFlowRules.editableProposal(s(p,"status")),"当前申请不可修改团队");
+        validateMemberInput(input,false);
         Map<String,Object> d=new LinkedHashMap<>(input);d.put("proposalId",proposalId);d.put("username",username);mapper.insertProposalMember(d);
     }
 
@@ -230,11 +236,12 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         return out;
     }
 
-    @Override public void addProjectMember(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object> p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);ResearchFlowRules.require("PLANNING".equals(s(p,"status")),"仅计划阶段可直接调整团队");Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("username",username);mapper.insertProjectMember(d);}
+    @Override public void addProjectMember(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object> p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);ResearchFlowRules.require("PLANNING".equals(s(p,"status")),"仅计划阶段可直接调整团队");validateMemberInput(input,false);Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("username",username);mapper.insertProjectMember(d);}
 
     @Override
     public void addWorkItem(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){
         Map<String,Object> p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);ResearchFlowRules.require("PLANNING".equals(s(p,"status")),"项目激活后计划变更必须走变更申请");
+        validateWorkItemPlan(projectId,p,input);
         Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("status","NOT_STARTED");d.put("progress",0);d.put("username",username);mapper.insertWorkItem(d);
     }
 
@@ -252,8 +259,16 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     @Transactional
     public void activateProject(Long projectId,Long userId,boolean manageAll,String username){
         Map<String,Object> p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);ResearchFlowRules.require("PLANNING".equals(s(p,"status")),"仅计划阶段项目可以激活");
-        ResearchFlowRules.require(mapper.countWorkItems(projectId)>0,"请至少建立一个工作项或里程碑");
+        List<Map<String,Object>> workItems=mapper.selectWorkItems(projectId);
+        ResearchFlowRules.require(!workItems.isEmpty(),"请至少建立一个工作项或里程碑");
+        ResearchFlowRules.require(!mapper.selectProjectMembers(projectId).isEmpty(),"项目团队不能为空");
+        for(Map<String,Object> item:workItems) validateWorkItemPlan(projectId,p,item);
         Map<String,Object> budget=mapper.selectCurrentBudget(projectId);ResearchFlowRules.require(budget!=null&&money(budget.get("totalAmount")).compareTo(BigDecimal.ZERO)>0,"项目预算不能为空");
+        List<Map<String,Object>> budgetLines=mapper.selectBudgetLines(longValue(budget.get("budgetId")));
+        ResearchFlowRules.require(!budgetLines.isEmpty(),"项目预算明细不能为空");
+        BigDecimal budgetLineTotal=budgetLines.stream().map(line->money(line.get("plannedAmount"))).reduce(BigDecimal.ZERO,BigDecimal::add);
+        ResearchFlowRules.require(budgetLineTotal.compareTo(money(budget.get("totalAmount")))==0,"预算明细合计必须等于当前项目预算");
+        ResearchFlowRules.require(money(p.get("currentBudget")).compareTo(money(budget.get("totalAmount")))==0,"项目预算与当前预算版本不一致");
         Long baselineId=createBaseline(p,"AWARD",longValue(p.get("awardId")),userId);
         mapper.updateProjectBaseline(projectId,baselineId,"ACTIVE");mapper.updateRecordPhase(longValue(p.get("recordId")),"EXECUTION","ACTIVE");
     }
@@ -268,22 +283,33 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         Map<String,Object>line=mapper.selectBudgetLine(budgetLineId);ResearchFlowRules.require(line!=null&&longValue(line.get("budgetId")).equals(longValue(budget.get("budgetId"))),"预算科目不属于当前预算版本");
         ResearchFlowRules.require(mapper.sumExpenses(projectId).add(amount).compareTo(money(budget.get("totalAmount")))<=0,"本次支出将超过项目总预算");
         BigDecimal planned=money(line.get("plannedAmount"));ResearchFlowRules.require(planned.compareTo(BigDecimal.ZERO)>0,"该预算科目不可记录支出");
-        ResearchFlowRules.require(mapper.sumExpensesByBudgetLine(budgetLineId).add(amount).compareTo(planned)<=0,"本次支出将超过该预算科目额度");
+        String category=s(line,"category");
+        ResearchFlowRules.require(mapper.sumExpensesByCategory(projectId,category).add(amount).compareTo(planned)<=0,"本次支出将超过该预算科目额度");
         Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("expenseNo",no("EXP"));d.put("username",username);mapper.insertExpense(d);
     }
-    @Override public void addOutcome(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);ResearchFlowRules.require(List.of("ACTIVE","CLOSING").contains(s(p,"status")),"当前项目不可登记成果");Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.putIfAbsent("status","COMPLETED");d.put("username",username);mapper.insertOutcome(d);}
+    @Override
+    public void addOutcome(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){
+        Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);ResearchFlowRules.require(List.of("ACTIVE","CLOSING").contains(s(p,"status")),"当前项目不可登记成果");
+        ResearchFlowRules.require(StringUtils.isNotEmpty(s(input,"name")),"成果名称不能为空");
+        Long expectedOutputId=longValue(input.get("expectedOutputId"));
+        if(expectedOutputId!=null){
+            boolean belongs=mapper.selectExpectedOutputs(longValue(p.get("proposalId"))).stream().anyMatch(o->expectedOutputId.equals(longValue(o.get("expectedOutputId"))));
+            ResearchFlowRules.require(belongs,"计划成果不属于当前项目");
+        }
+        Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.putIfAbsent("status","COMPLETED");d.put("username",username);mapper.insertOutcome(d);
+    }
     @Override public void attachProjectDocument(Long projectId,Map<String,Object> input,Long userId,boolean manageAll){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);insertDocument(longValue(p.get("recordId")),"PROJECT",projectId,s(input,"category").isEmpty()?"GENERAL":s(input,"category"),input,userId);}
 
     @Override
     public void addRisk(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){
-        Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);
+        Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);requireGovernanceMutable(p);
         int probability=integer(input.get("probability"),1),impact=integer(input.get("impact"),1);ResearchFlowRules.require(probability>=1&&probability<=5&&impact>=1&&impact<=5,"概率和影响必须在1-5之间");
         Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("riskNo","RISK-"+String.format("%04d",mapper.selectProjectRisks(projectId).size()+1));d.put("score",probability*impact);d.put("riskLevel",ResearchFlowRules.riskLevel(probability,impact));d.put("source",s(input,"source").isEmpty()?"MANUAL":s(input,"source"));d.put("status","OPEN");d.put("username",username);mapper.insertRisk(d);
     }
-    @Override public void updateRiskStatus(Long projectId,Long riskId,String status,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);Map<String,Object>r=mapper.selectRisk(riskId);ResearchFlowRules.require(r!=null&&projectId.equals(longValue(r.get("projectId"))),"风险不存在");ResearchFlowRules.require(List.of("OPEN","MONITORING","CLOSED").contains(status),"非法风险状态");mapper.updateRiskStatus(riskId,status,username);}
-    @Override @Transactional public Long convertRiskToIssue(Long projectId,Long riskId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);Map<String,Object>r=mapper.selectRisk(riskId);ResearchFlowRules.require(r!=null&&projectId.equals(longValue(r.get("projectId"))),"风险不存在");ResearchFlowRules.require(!"CLOSED".equals(s(r,"status")),"已关闭风险不能转为问题");mapper.updateRiskStatus(riskId,"OCCURRED",username);Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("sourceRiskId",riskId);d.put("issueNo","ISS-"+String.format("%04d",mapper.selectProjectIssues(projectId).size()+1));d.putIfAbsent("title",r.get("title"));d.putIfAbsent("description",r.get("description"));d.putIfAbsent("severity",r.get("riskLevel"));d.put("status","OPEN");d.put("username",username);mapper.insertIssue(d);return longValue(d.get("issueId"));}
-    @Override public void addIssue(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("issueNo","ISS-"+String.format("%04d",mapper.selectProjectIssues(projectId).size()+1));d.put("status","OPEN");d.put("username",username);mapper.insertIssue(d);}
-    @Override public void updateIssueStatus(Long projectId,Long issueId,String status,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);Map<String,Object>i=mapper.selectIssue(issueId);ResearchFlowRules.require(i!=null&&projectId.equals(longValue(i.get("projectId"))),"问题不存在");ResearchFlowRules.require(List.of("OPEN","IN_PROGRESS","RESOLVED","CLOSED").contains(status),"非法问题状态");mapper.updateIssueStatus(issueId,status,s(input,"resolution"),username);}
+    @Override public void updateRiskStatus(Long projectId,Long riskId,String status,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);requireGovernanceMutable(p);Map<String,Object>r=mapper.selectRisk(riskId);ResearchFlowRules.require(r!=null&&projectId.equals(longValue(r.get("projectId"))),"风险不存在");ResearchFlowRules.require(ResearchFlowRules.canTransitionRisk(s(r,"status"),status),"当前风险状态不允许该操作");mapper.updateRiskStatus(riskId,status,username);}
+    @Override @Transactional public Long convertRiskToIssue(Long projectId,Long riskId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);requireGovernanceMutable(p);Map<String,Object>r=mapper.selectRisk(riskId);ResearchFlowRules.require(r!=null&&projectId.equals(longValue(r.get("projectId"))),"风险不存在");ResearchFlowRules.require(List.of("OPEN","MONITORING").contains(s(r,"status")),"当前风险状态不能转为问题");mapper.updateRiskStatus(riskId,"OCCURRED",username);Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("sourceRiskId",riskId);d.put("issueNo","ISS-"+String.format("%04d",mapper.selectProjectIssues(projectId).size()+1));d.putIfAbsent("title",r.get("title"));d.putIfAbsent("description",r.get("description"));d.putIfAbsent("severity",r.get("riskLevel"));d.put("status","OPEN");d.put("username",username);mapper.insertIssue(d);return longValue(d.get("issueId"));}
+    @Override public void addIssue(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);requireGovernanceMutable(p);Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("issueNo","ISS-"+String.format("%04d",mapper.selectProjectIssues(projectId).size()+1));d.put("status","OPEN");d.put("username",username);mapper.insertIssue(d);}
+    @Override public void updateIssueStatus(Long projectId,Long issueId,String status,Map<String,Object> input,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);requireGovernanceMutable(p);Map<String,Object>i=mapper.selectIssue(issueId);ResearchFlowRules.require(i!=null&&projectId.equals(longValue(i.get("projectId"))),"问题不存在");ResearchFlowRules.require(ResearchFlowRules.canTransitionIssue(s(i,"status"),status),"当前问题状态不允许该操作");if("RESOLVED".equals(status))ResearchFlowRules.require(StringUtils.isNotEmpty(s(input,"resolution")),"解决问题时必须填写解决结果");mapper.updateIssueStatus(issueId,status,s(input,"resolution"),username);}
     @Override
     public void addDecision(Long projectId,Map<String,Object> input,Long userId,boolean manageAll,String username){
         Map<String,Object>p=requiredProject(projectId);checkProjectContributor(projectId,p,userId,manageAll);
@@ -301,17 +327,19 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
         Map<String,Object>d=new LinkedHashMap<>(input);d.put("projectId",projectId);d.put("changeNo",no("CR"));d.put("applicantUserId",userId);d.put("status","DRAFT");d.put("username",username);mapper.insertChange(d);
         for(Map<String,Object> item:list(input.get("items"))){item.put("changeId",d.get("changeId"));mapper.insertChangeItem(item);}return longValue(d.get("changeId"));
     }
-    @Override @Transactional public void submitChange(Long projectId,Long changeId,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("DRAFT".equals(s(c,"status")),"仅草稿变更可以提交");ResearchFlowRules.require(!mapper.selectChangeItems(changeId).isEmpty(),"至少需要一个变更项");mapper.updateChangeStatus(changeId,"SUBMITTED",username);Long wf=startWorkflow("CHANGE_APPROVAL","CHANGE_REQUEST",changeId,userId,"MANAGEMENT");workflowAction(wf,"SUBMIT","SUBMIT",userId,"提交变更申请");}
+    @Override @Transactional public void submitChange(Long projectId,Long changeId,Long userId,boolean manageAll,String username){Map<String,Object>p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("DRAFT".equals(s(c,"status")),"仅草稿变更可以提交");List<Map<String,Object>> items=mapper.selectChangeItems(changeId);ResearchFlowRules.require(!items.isEmpty(),"至少需要一个变更项");validateChangeItems(projectId,p,items,true);mapper.updateChangeStatus(changeId,"SUBMITTED",username);Long wf=startWorkflow("CHANGE_APPROVAL","CHANGE_REQUEST",changeId,userId,"MANAGEMENT");workflowAction(wf,"SUBMIT","SUBMIT",userId,"提交变更申请");}
     @Override @Transactional public void approveChange(Long projectId,Long changeId,String comment,Long userId,String username){requiredProject(projectId);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("SUBMITTED".equals(s(c,"status")),"仅已提交变更可以审批");mapper.updateChangeStatus(changeId,"APPROVED",username);completeWorkflow("CHANGE_REQUEST",changeId,userId,"MANAGEMENT","APPROVE",comment);}
     @Override @Transactional public void rejectChange(Long projectId,Long changeId,String comment,Long userId,String username){requiredProject(projectId);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("SUBMITTED".equals(s(c,"status")),"仅已提交变更可以审批");mapper.updateChangeStatus(changeId,"REJECTED",username);completeWorkflow("CHANGE_REQUEST",changeId,userId,"MANAGEMENT","REJECT",comment);}
     @Override
     @Transactional
     public void applyChange(Long projectId,Long changeId,Long userId,boolean manageAll,String username){
         Map<String,Object>p=requiredProject(projectId);checkProjectManage(projectId,p,userId,manageAll);Map<String,Object>c=requiredChange(projectId,changeId);ResearchFlowRules.require("APPROVED".equals(s(c,"status")),"仅已批准变更可以应用");
+        List<Map<String,Object>> items=mapper.selectChangeItems(changeId);
+        validateChangeItems(projectId,p,items,true);
         String end=p.get("plannedEndDate")==null?null:p.get("plannedEndDate").toString();
         BigDecimal originalBudget=money(p.get("currentBudget"));
         BigDecimal budget=originalBudget;
-        for(Map<String,Object> item:mapper.selectChangeItems(changeId)){
+        for(Map<String,Object> item:items){
             String field=s(item,"fieldCode");
             if("planned_end_date".equals(field)) end=s(item,"afterValue");
             if("current_budget".equals(field)||"total_budget".equals(field)) budget=money(item.get("afterValue"));
@@ -392,7 +420,7 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     private void insertDocument(Long recordId,String type,Long businessId,String category,Map<String,Object>d,Long userId){Map<String,Object>x=new LinkedHashMap<>(d);x.put("recordId",recordId);x.put("businessType",type);x.put("businessId",businessId);x.put("category",category);x.put("storageProvider","LOCAL");x.put("uploadedBy",userId);mapper.insertDocument(x);}
     private Long startWorkflow(String wfType,String bizType,Long bizId,Long userId,String step){Map<String,Object>w=new LinkedHashMap<>();w.put("workflowType",wfType);w.put("businessType",bizType);w.put("businessId",bizId);w.put("status","RUNNING");w.put("currentStep",step);w.put("startedBy",userId);mapper.insertWorkflow(w);return longValue(w.get("workflowId"));}
     private void workflowAction(Long wfId,String step,String action,Long userId,String comment){Map<String,Object>a=new LinkedHashMap<>();a.put("workflowId",wfId);a.put("stepCode",step);a.put("action",action);a.put("operatorUserId",userId);a.put("comment",comment);mapper.insertWorkflowAction(a);}
-    private void completeWorkflow(String bizType,Long bizId,Long userId,String step,String action,String comment){Long wf=mapper.selectActiveWorkflowId(bizType,bizId);if(wf!=null){workflowAction(wf,step,action,userId,comment);mapper.updateWorkflow(bizType,bizId,"COMPLETED",step);}}
+    private void completeWorkflow(String bizType,Long bizId,Long userId,String step,String action,String comment){Long wf=mapper.selectActiveWorkflowId(bizType,bizId);ResearchFlowRules.require(wf!=null,"未找到活动审批流程，请刷新后重试");workflowAction(wf,step,action,userId,comment);mapper.updateWorkflow(bizType,bizId,"COMPLETED",step);}
     private Map<String,Object> requiredProposal(Long id){Map<String,Object>p=mapper.selectProposal(id);ResearchFlowRules.require(p!=null,"项目申请不存在");return p;}
     private Map<String,Object> requiredProject(Long id){Map<String,Object>p=mapper.selectProject(id);ResearchFlowRules.require(p!=null,"科研项目不存在");return p;}
     private Map<String,Object> requiredChange(Long projectId,Long id){Map<String,Object>c=mapper.selectChange(id);ResearchFlowRules.require(c!=null&&projectId.equals(longValue(c.get("projectId"))),"变更申请不存在");return c;}
@@ -403,6 +431,58 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     private void checkProjectContributor(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||mapper.isProjectMember(projectId,userId)>0,"仅项目成员可以执行该操作");}
     private void checkProjectFinance(Long projectId,Map<String,Object>p,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||"PI".equals(role)||"PROJECT_MANAGER".equals(role)||"FINANCE_CONTACT".equals(role),"无权维护项目经费");}
     private void checkWorkItemManage(Long projectId,Map<String,Object>p,Map<String,Object>w,Long userId,boolean manageAll){String role=mapper.selectProjectMemberRole(projectId,userId);ResearchFlowRules.require(manageAll||userId.equals(longValue(p.get("piUserId")))||"PI".equals(role)||"PROJECT_MANAGER".equals(role)||userId.equals(longValue(w.get("ownerUserId"))),"仅项目经理或任务负责人可以更新工作项");}
+    private void validateMemberInput(Map<String,Object> input,boolean allowPi){
+        Long memberUserId=longValue(input.get("userId"));
+        ResearchFlowRules.require(memberUserId!=null&&mapper.isActiveUser(memberUserId)>0,"请选择有效的在职用户");
+        String role=s(input,"memberRole");
+        List<String> roles=List.of("PI","PROJECT_MANAGER","RESEARCHER","TECHNICAL_LEAD","FINANCE_CONTACT","SPONSOR","MEMBER");
+        ResearchFlowRules.require(roles.contains(role),"非法项目角色");
+        if(!allowPi) ResearchFlowRules.require(!"PI".equals(role),"PI 由项目负责人自动确定，不能重复添加");
+        Object allocationValue=input.containsKey("allocationPercent")?input.get("allocationPercent"):input.get("plannedAllocation");
+        if(allocationValue!=null){BigDecimal allocation=money(allocationValue);ResearchFlowRules.require(allocation.compareTo(BigDecimal.ZERO)>=0&&allocation.compareTo(BigDecimal.valueOf(100))<=0,"成员投入比例必须在0-100之间");}
+    }
+    private void requireGovernanceMutable(Map<String,Object> p){ResearchFlowRules.require(List.of("PLANNING","ACTIVE","CLOSING").contains(s(p,"status")),"已关闭或终止项目不可修改治理记录");}
+    private void validateWorkItemPlan(Long projectId,Map<String,Object> project,Map<String,Object> item){
+        String type=s(item,"itemType");
+        ResearchFlowRules.require(List.of("PHASE","WORK_PACKAGE","TASK","MILESTONE").contains(type),"非法工作项类型");
+        ResearchFlowRules.require(StringUtils.isNotEmpty(s(item,"title")),"工作项名称不能为空");
+        Long parentId=longValue(item.get("parentId"));
+        if(parentId!=null){
+            Map<String,Object> parent=mapper.selectWorkItem(parentId);
+            ResearchFlowRules.require(parent!=null&&projectId.equals(longValue(parent.get("projectId"))),"上级工作项不属于当前项目");
+            ResearchFlowRules.require(!"MILESTONE".equals(s(parent,"itemType")),"里程碑不能作为上级工作项");
+        }
+        Long ownerId=longValue(item.get("ownerUserId"));
+        if(List.of("TASK","MILESTONE").contains(type)) ResearchFlowRules.require(ownerId!=null,"任务和里程碑必须指定负责人");
+        if(ownerId!=null) ResearchFlowRules.require(ownerId.equals(longValue(project.get("piUserId")))||mapper.isProjectMember(projectId,ownerId)>0,"负责人必须是当前项目成员");
+        String start=s(item,"plannedStartDate"),end=s(item,"plannedEndDate");
+        if(List.of("TASK","MILESTONE").contains(type)) ResearchFlowRules.require(StringUtils.isNotEmpty(start)&&StringUtils.isNotEmpty(end),"任务和里程碑必须填写计划周期");
+        if(StringUtils.isNotEmpty(start)&&StringUtils.isNotEmpty(end)){
+            LocalDate itemStart=parseDate(start,"工作项开始日期格式不正确");
+            LocalDate itemEnd=parseDate(end,"工作项结束日期格式不正确");
+            ResearchFlowRules.require(!itemEnd.isBefore(itemStart),"工作项结束日期不能早于开始日期");
+            if(project.get("plannedStartDate")!=null) ResearchFlowRules.require(!itemStart.isBefore(parseDate(project.get("plannedStartDate"),"项目开始日期格式不正确")),"工作项开始日期不能早于项目计划开始日期");
+            if(project.get("plannedEndDate")!=null) ResearchFlowRules.require(!itemEnd.isAfter(parseDate(project.get("plannedEndDate"),"项目结束日期格式不正确")),"工作项结束日期不能晚于项目计划结束日期");
+        }
+        if(item.get("weight")!=null){BigDecimal weight=money(item.get("weight"));ResearchFlowRules.require(weight.compareTo(BigDecimal.ZERO)>=0&&weight.compareTo(BigDecimal.valueOf(100))<=0,"工作项权重必须在0-100之间");}
+    }
+    private void validateChangeItems(Long projectId,Map<String,Object> project,List<Map<String,Object>> items,boolean requireBeforeMatch){
+        BigDecimal spent=mapper.sumExpenses(projectId);
+        for(Map<String,Object> item:items){
+            String field=s(item,"fieldCode");
+            ResearchFlowRules.require(List.of("planned_end_date","current_budget","total_budget").contains(field),"当前 Demo 不支持该变更字段："+field);
+            if("planned_end_date".equals(field)){
+                LocalDate after=parseDate(item.get("afterValue"),"变更后的结束日期格式不正确");
+                ResearchFlowRules.require(!after.isBefore(parseDate(project.get("plannedStartDate"),"项目开始日期格式不正确")),"变更后的结束日期不能早于项目开始日期");
+                if(requireBeforeMatch)ResearchFlowRules.require(s(item,"beforeValue").equals(s(project,"plannedEndDate")),"项目计划已变化，请重新发起变更");
+            }else{
+                BigDecimal after=money(item.get("afterValue"));
+                ResearchFlowRules.require(after.compareTo(BigDecimal.ZERO)>0,"变更后的项目预算必须大于0");
+                ResearchFlowRules.require(after.compareTo(spent)>=0,"变更后的项目预算不能低于已发生支出");
+                if(requireBeforeMatch)ResearchFlowRules.require(money(item.get("beforeValue")).compareTo(money(project.get("currentBudget")))==0,"项目预算已变化，请重新发起变更");
+            }
+        }
+    }
     private long countStatus(List<Map<String,Object>> rows,String status){return rows.stream().filter(x->status.equals(s(x,"status"))).count();}
     private int percent(BigDecimal a,BigDecimal b){return b==null||b.compareTo(BigDecimal.ZERO)==0?0:a.multiply(BigDecimal.valueOf(100)).divide(b,0,java.math.RoundingMode.HALF_UP).intValue();}
     private static String no(String prefix){String time=LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));return prefix+"-"+time+"-"+ThreadLocalRandom.current().nextInt(100,1000);}
@@ -410,6 +490,7 @@ public class ResearchFlowServiceImpl implements ResearchFlowService {
     private static Object value(Map<String,Object>m,String k,Object fallback){Object v=m==null?null:m.get(k);return v==null||String.valueOf(v).isBlank()?fallback:v;}
     private static Long longValue(Object v){if(v==null)return null;if(v instanceof Number n)return n.longValue();return Long.valueOf(String.valueOf(v));}
     private static int integer(Object v,int fallback){if(v==null)return fallback;if(v instanceof Number n)return n.intValue();try{return Integer.parseInt(String.valueOf(v));}catch(Exception e){return fallback;}}
+    private static LocalDate parseDate(Object v,String message){try{return LocalDate.parse(String.valueOf(v));}catch(Exception e){throw new ServiceException(message);}}
     private static BigDecimal money(Object v){if(v==null||String.valueOf(v).isBlank())return BigDecimal.ZERO;if(v instanceof BigDecimal b)return b;if(v instanceof Number n)return BigDecimal.valueOf(n.doubleValue());return new BigDecimal(String.valueOf(v));}
     @SuppressWarnings("unchecked") private static List<Map<String,Object>> list(Object v){if(v instanceof List<?> l)return (List<Map<String,Object>>)(List<?>)l;return new ArrayList<>();}
     private String toJson(Object o){try{return json.writeValueAsString(o);}catch(JsonProcessingException e){throw new ServiceException("生成基线快照失败");}}

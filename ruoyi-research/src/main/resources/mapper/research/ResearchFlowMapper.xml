@@ -10,6 +10,7 @@
     order by u.user_id
     limit 100
   </select>
+  <select id="isActiveUser" resultType="int">select count(*) from sys_user where user_id=#{userId} and status='0' and del_flag='0'</select>
 
   <insert id="insertRecord" parameterType="map" useGeneratedKeys="true" keyProperty="recordId">
     insert into research_record(record_no,title,owner_user_id,dept_id,create_by)
@@ -161,9 +162,10 @@
   <select id="selectBudgetLines" resultType="map">select budget_line_id budgetLineId,budget_id budgetId,category,planned_amount plannedAmount,description from research_budget_line where budget_id=#{budgetId} order by budget_line_id</select>
   <select id="selectBudgetLine" resultType="map">select budget_line_id budgetLineId,budget_id budgetId,category,planned_amount plannedAmount,description from research_budget_line where budget_line_id=#{budgetLineId}</select>
   <insert id="insertExpense" parameterType="map" useGeneratedKeys="true" keyProperty="expenseId">insert into research_expense(project_id,budget_line_id,expense_no,expense_date,amount,description,reference_no,create_by) values(#{projectId},#{budgetLineId},#{expenseNo},#{expenseDate},#{amount},#{description},#{referenceNo},#{username})</insert>
-  <select id="selectExpenses" resultType="map">select e.expense_id expenseId,e.expense_no expenseNo,e.expense_date expenseDate,e.amount,e.description,e.reference_no referenceNo,b.category from research_expense e left join research_budget_line b on b.budget_line_id=e.budget_line_id where e.project_id=#{projectId} order by e.expense_date desc,e.expense_id desc</select>
+  <select id="selectExpenses" resultType="map">select e.expense_id expenseId,e.budget_line_id budgetLineId,e.expense_no expenseNo,e.expense_date expenseDate,e.amount,e.description,e.reference_no referenceNo,b.category from research_expense e left join research_budget_line b on b.budget_line_id=e.budget_line_id where e.project_id=#{projectId} order by e.expense_date desc,e.expense_id desc</select>
   <select id="sumExpenses" resultType="java.math.BigDecimal">select coalesce(sum(amount),0) from research_expense where project_id=#{projectId}</select>
   <select id="sumExpensesByBudgetLine" resultType="java.math.BigDecimal">select coalesce(sum(amount),0) from research_expense where budget_line_id=#{budgetLineId}</select>
+  <select id="sumExpensesByCategory" resultType="java.math.BigDecimal">select coalesce(sum(e.amount),0) from research_expense e join research_budget_line b on b.budget_line_id=e.budget_line_id where e.project_id=#{projectId} and b.category=#{category}</select>
 
   <insert id="insertOutcome" parameterType="map" useGeneratedKeys="true" keyProperty="outcomeId">insert into research_outcome(project_id,expected_output_id,outcome_type,name,description,status,completed_date,external_reference,create_by) values(#{projectId},#{expectedOutputId},#{outcomeType},#{name},#{description},coalesce(#{status},'COMPLETED'),#{completedDate},#{externalReference},#{username})</insert>
   <select id="selectOutcomes" resultType="map">select outcome_id outcomeId,expected_output_id expectedOutputId,outcome_type outcomeType,name,description,status,completed_date completedDate,external_reference externalReference from research_outcome where project_id=#{projectId} order by completed_date desc,outcome_id desc</select>

@@ -20,4 +20,17 @@ class ResearchFlowRulesTest {
         assertTrue(ResearchFlowRules.canTransitionWorkItem("complete","IN_PROGRESS"));
         assertFalse(ResearchFlowRules.canTransitionWorkItem("start","DONE"));
     }
+
+    @Test void riskTransitionsDoNotReopenClosedOrOccurredRisks(){
+        assertTrue(ResearchFlowRules.canTransitionRisk("OPEN","MONITORING"));
+        assertTrue(ResearchFlowRules.canTransitionRisk("OCCURRED","CLOSED"));
+        assertFalse(ResearchFlowRules.canTransitionRisk("CLOSED","OPEN"));
+        assertFalse(ResearchFlowRules.canTransitionRisk("OCCURRED","OPEN"));
+    }
+
+    @Test void issueTransitionsAreControlled(){
+        assertTrue(ResearchFlowRules.canTransitionIssue("OPEN","IN_PROGRESS"));
+        assertTrue(ResearchFlowRules.canTransitionIssue("RESOLVED","CLOSED"));
+        assertFalse(ResearchFlowRules.canTransitionIssue("CLOSED","IN_PROGRESS"));
+    }
 }
