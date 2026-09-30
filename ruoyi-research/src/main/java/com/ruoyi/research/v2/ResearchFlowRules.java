@@ -31,4 +31,20 @@ public final class ResearchFlowRules {
         if ("block".equals(action)) return "IN_PROGRESS".equals(status);
         return false;
     }
+
+    public static boolean canTransitionRisk(String current, String target) {
+        if ("CLOSED".equals(current)) return false;
+        if ("OCCURRED".equals(current)) return "CLOSED".equals(target);
+        if ("OPEN".equals(current)) return "MONITORING".equals(target) || "CLOSED".equals(target);
+        if ("MONITORING".equals(current)) return "OPEN".equals(target) || "CLOSED".equals(target);
+        return false;
+    }
+
+    public static boolean canTransitionIssue(String current, String target) {
+        if ("CLOSED".equals(current)) return false;
+        if ("OPEN".equals(current)) return "IN_PROGRESS".equals(target) || "RESOLVED".equals(target) || "CLOSED".equals(target);
+        if ("IN_PROGRESS".equals(current)) return "RESOLVED".equals(target) || "CLOSED".equals(target);
+        if ("RESOLVED".equals(current)) return "IN_PROGRESS".equals(target) || "CLOSED".equals(target);
+        return false;
+    }
 }
